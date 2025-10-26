@@ -40,6 +40,20 @@ const LogsModal = ({ containerId, onClose }) => {
     }
   }, [logs]);
 
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [onClose]);
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
