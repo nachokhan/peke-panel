@@ -1,5 +1,5 @@
 // src/components/LogsModal.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getContainerLogs } from '../api';
 import { FaSync, FaCopy } from 'react-icons/fa';
 
@@ -8,6 +8,7 @@ const LogsModal = ({ containerId, onClose }) => {
   const [lines, setLines] = useState(1000);
   const [error, setError] = useState('');
   const lineOptions = [100, 500, 1000, 5000];
+  const logsContainerRef = useRef(null);
 
   const handleCopyLogs = async () => {
     try {
@@ -32,6 +33,12 @@ const LogsModal = ({ containerId, onClose }) => {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  useEffect(() => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   return (
     <div className="modal-overlay">
@@ -64,7 +71,7 @@ const LogsModal = ({ containerId, onClose }) => {
             </button>
           </div>
         </div>
-        <pre className="logs-container">
+        <pre ref={logsContainerRef} className="logs-container">
           {error ? <p className="error">{error}</p> : logs}
         </pre>
       </div>
