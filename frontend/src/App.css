@@ -121,6 +121,14 @@ body {
   color: #000;
 }
 
+body.dark .service-actions button {
+  color: #eee; /* Light color for icons in dark mode */
+}
+
+body.dark .service-actions button:hover {
+  color: #007bff; /* Accent color on hover in dark mode */
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -152,6 +160,65 @@ body {
   padding-bottom: 1rem;
 }
 
+.settings-dropdown {
+  position: absolute;
+  top: 100%; /* Position below the settings button */
+  right: 0; /* Align to the right of its parent */
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 1rem;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 180px; /* Increased width to accommodate text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.theme-toggle-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem; /* Slightly smaller icon size */
+  cursor: pointer;
+  color: #555; /* Default icon color */
+  padding: 0.5rem;
+  display: flex; /* Make it a flex container */
+  align-items: center;
+  gap: 0.5rem; /* Space between icon and text */
+}
+
+body.dark .theme-toggle-button {
+  color: #eee; /* Dark mode icon color */
+}
+
+.settings-dropdown label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: #333; /* Default text color for light mode */
+}
+
+body.dark .settings-dropdown label {
+  color: #eee; /* Text color for dark mode */
+}
+
+/* Dark Mode Styles */
+body.dark {
+  background-color: #333;
+  color: #eee;
+}
+
+body.dark .modal-content {
+  background: #444;
+  color: #eee;
+}
+
+body.dark .modal-header {
+  border-bottom-color: #666;
+}
+
 .modal-header h2 {
   margin: 0;
 }
@@ -169,6 +236,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: nowrap;
 }
 
 .lines-selector {
@@ -177,40 +245,113 @@ body {
   gap: 0.5rem;
 }
 
+.lines-selector span {
+  padding-right: 0.5rem;
+  font-weight: normal;
+  color: #555;
+  font-size: 1.1rem; /* Increased font size */
+}
+
+body.dark .lines-selector span {
+  color: #eee;
+}
+
 .lines-options {
   display: flex;
-  border: 1px solid #ccc;
+  /* Remove border and shadow */
   border-radius: 4px;
   overflow: hidden;
 }
 
-.line-option {
-  background: #fff;
-  border: none;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  border-left: 1px solid #ccc;
+body.dark .lines-options {
+  /* Remove border and shadow */
 }
 
-.line-option:first-child {
-  border-left: none;
+.line-option {
+  background: none;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  color: #555;
+  transition: color 0.2s;
+  font-size: 1.1rem; /* Increased font size */
+}
+
+.line-option:hover {
+  color: #000; /* Darker color on hover for light mode */
 }
 
 .line-option.active {
-  background: #007bff;
-  color: white;
+  color: #007bff; /* Active color for light mode */
+  font-weight: bold;
+}
+
+body.dark .line-option {
+  color: #eee; /* Light color for text in dark mode */
+}
+
+body.dark .line-option:hover {
+  color: #007bff; /* Accent color on hover in dark mode */
+}
+
+body.dark .line-option.active {
+  color: #007bff; /* Active color for dark mode */
 }
 
 .update-logs-button {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  background: none; /* Make background transparent */
+  border: none; /* Remove border */
+  font-size: 1.2rem;
   cursor: pointer;
+  padding: 0.5rem;
+  color: #555; /* Default icon color for light mode */
+  transition: color 0.2s; /* Transition for color change */
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.update-logs-button:hover {
+  color: #000; /* Darker color on hover for light mode */
+}
+
+body.dark .update-logs-button {
+  color: #eee; /* Light color for icons in dark mode */
+}
+
+body.dark .update-logs-button:hover {
+  color: #007bff; /* Accent color on hover in dark mode */
+}
+
+body.dark .settings-dropdown {
+  background: #555;
+  border-color: #666;
+}
+
+body.dark .settings-button {
+  color: #ccc;
+}
+
+body.dark .close-button {
+  color: #ccc;
+}
+
+body.dark .logs-container {
+  background: #333;
+  color: #eee;
+}
+
+body.dark .service-card {
+  background: #555;
+  color: #eee;
+}
+
+body.dark .service-card h3 {
+  color: #eee;
+}
+
+body.dark .service-card p {
+  color: #ccc;
 }
 
 .logs-container {

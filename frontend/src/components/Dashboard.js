@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { getStatus, startContainer, stopContainer, restartContainer } from '../api';
 import LogsModal from './LogsModal';
-import { FaPlay, FaStop, FaSync, FaFileAlt } from 'react-icons/fa';
+import { FaPlay, FaStop, FaSync, FaFileAlt, FaCog, FaSun, FaMoon } from 'react-icons/fa';
 
 const Dashboard = ({ setToken }) => {
   const [services, setServices] = useState([]);
   const [error, setError] = useState('');
   const [selectedContainer, setSelectedContainer] = useState(null);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
   const fetchStatus = async () => {
     try {
@@ -51,11 +53,35 @@ const Dashboard = ({ setToken }) => {
     }
   };
 
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
+
+  useEffect(() => {
+    document.body.className = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   return (
     <div className="dashboard-container">
       <nav>
         <h1>2Brains Health Monitor</h1>
-        <button onClick={handleLogout}>Logout</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ position: 'relative' }}>
+            <button className="settings-button" onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}>
+              <FaCog />
+            </button>
+            {showSettingsDropdown && (
+              <div className="settings-dropdown" style={{ right: 0, left: 'auto' }}>
+                <button onClick={toggleTheme} className="theme-toggle-button">
+                  {theme === 'dark' ? <FaSun /> : <FaMoon />}
+                  <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
       </nav>
       {error && <p className="error">{error}</p>}
       <div className="service-list">
