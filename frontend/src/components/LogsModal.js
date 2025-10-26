@@ -5,7 +5,7 @@ import { FaSync, FaCopy, FaDownload } from 'react-icons/fa';
 
 const LogsModal = ({ containerId, onClose }) => {
   const [logs, setLogs] = useState('');
-  const [lines, setLines] = useState(1000);
+  const [lines, setLines] = useState(100);
   const [error, setError] = useState('');
   const [isFlashing, setIsFlashing] = useState(false);
   const lineOptions = [100, 500, 1000, 5000];
