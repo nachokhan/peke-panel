@@ -55,6 +55,7 @@ const Dashboard = ({ setToken }) => {
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+    setShowSettingsDropdown(false); // Close dropdown after toggling theme
   };
 
   useEffect(() => {
