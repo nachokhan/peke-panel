@@ -435,14 +435,21 @@ body.dark .logs-container.flash {
 }
 
 .current-match {
-  background-color: black;
-  color: white;
+  background-color: rgb(255, 255, 255);
+  color: rgb(0, 27, 205);
 }
 
 .search-container {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  background-color: #f0f0f0;
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+body.dark .search-container {
+  background-color: #555;
 }
 
 .search-container input {
@@ -451,9 +458,30 @@ body.dark .logs-container.flash {
   padding: 0.5rem;
 }
 
+body.dark .search-container input {
+  background-color: #666;
+  color: #eee;
+  border-color: #888;
+}
+
 .search-container button {
   background: none;
   border: 1px solid #ccc;
   border-radius: 4px;
   cursor: pointer;
+  padding: 0.5rem;
+}
+
+body.dark .search-container button {
+  color: #eee;
+  border-color: #888;
+}
+
+.search-container span {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+body.dark .search-container span {
+  color: #eee;
 }

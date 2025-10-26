@@ -173,7 +173,7 @@ const LogsModal = ({ containerId, onClose }) => {
             <button onClick={() => goToMatch('prev')}>&lt;</button>
             <button onClick={() => goToMatch('next')}>&gt;</button>
             <span>
-              {matches.length > 0 ? `${currentMatch + 1} of ${matches.length}` : 'No matches'}
+              {searchTerm && (matches.length > 0 ? `${currentMatch + 1} of ${matches.length}` : 'No matches')}
             </span>
           </div>
           <div className="modal-toolbar-actions">
