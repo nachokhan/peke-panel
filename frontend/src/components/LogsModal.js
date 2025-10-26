@@ -1,7 +1,7 @@
 // src/components/LogsModal.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getContainerLogs } from '../api';
-import { FaSync, FaCopy } from 'react-icons/fa';
+import { FaSync, FaCopy, FaDownload } from 'react-icons/fa';
 
 const LogsModal = ({ containerId, onClose }) => {
   const [logs, setLogs] = useState('');
@@ -18,6 +18,18 @@ const LogsModal = ({ containerId, onClose }) => {
       console.error('Failed to copy logs: ', err);
       // alert('Failed to copy logs.');
     }
+  };
+
+  const handleExportLogs = () => {
+    const blob = new Blob([logs], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `logs-${containerId}-${new Date().toISOString()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const fetchLogs = useCallback(async () => {
@@ -82,6 +94,9 @@ const LogsModal = ({ containerId, onClose }) => {
             </button>
             <button onClick={handleCopyLogs} className="update-logs-button">
               <FaCopy />
+            </button>
+            <button onClick={handleExportLogs} className="update-logs-button">
+              <FaDownload />
             </button>
           </div>
         </div>
