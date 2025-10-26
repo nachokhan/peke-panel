@@ -15,7 +15,7 @@ venv.bak/
 
 # Archivos de configuración
 *.env
-*.env.*
+*.env.
 
 # Compilación
 build/
