@@ -14,18 +14,31 @@ const Dashboard = ({ setToken }) => {
   const fetchStatus = async () => {
     try {
       const response = await getStatus();
-      setServices(response.data);
+      // Assuming the API now returns ram_usage, cpu_usage, net_usage
+      // If not, we'll add dummy data for now
+      const updatedServices = response.data.map(service => ({
+        ...service,
+        ram_usage: service.ram_usage || 'N/A',
+        cpu_usage: service.cpu_usage || 'N/A',
+        net_usage: service.net_usage || 'N/A',
+      }));
+      setServices(updatedServices);
     } catch (error) {
       setError('Failed to fetch status');
     }
   };
 
   useEffect(() => {
+    if (selectedContainer) {
+      // If a container is selected (logs modal is open), stop fetching status
+      return; // No interval is set
+    }
+
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000); // Refresh every 5 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchStatus, selectedContainer]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -92,6 +105,9 @@ const Dashboard = ({ setToken }) => {
             <p>Status: {service.status}</p>
             <p>Uptime: {service.uptime}</p>
             <p>Port: {service.port}</p>
+            <p>RAM: {service.ram_usage}</p>
+            <p>CPU: {service.cpu_usage}</p>
+            <p>NET: {service.net_usage}</p>
             <div className="service-actions">
               <button onClick={() => handleAction('start', service.id)}><FaPlay /></button>
               <button onClick={() => handleAction('stop', service.id)}><FaStop /></button>
