@@ -9,6 +9,8 @@ const LogsModal = ({ containerId, onClose }) => {
   const [error, setError] = useState('');
   const [isFlashing, setIsFlashing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [matches, setMatches] = useState([]);
+  const [currentMatch, setCurrentMatch] = useState(0);
   const lineOptions = [100, 500, 1000, 5000];
   const logsContainerRef = useRef(null);
 
@@ -70,22 +72,69 @@ const LogsModal = ({ containerId, onClose }) => {
     };
   }, [onClose]);
 
+  useEffect(() => {
+    if (searchTerm) {
+      const regex = new RegExp(searchTerm, 'gi');
+      const newMatches = [];
+      logs.split('\n').forEach((line, lineIndex) => {
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          newMatches.push({ line: lineIndex, start: match.index, end: match.index + match[0].length });
+        }
+      });
+      setMatches(newMatches);
+      setCurrentMatch(0);
+    } else {
+      setMatches([]);
+    }
+  }, [searchTerm, logs]);
+
+  useEffect(() => {
+    if (matches.length > 0 && logsContainerRef.current) {
+      const currentMatchElement = logsContainerRef.current.querySelector('.current-match');
+      if (currentMatchElement) {
+        currentMatchElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }
+    }
+  }, [currentMatch, matches]);
+
+  const goToMatch = (direction) => {
+    if (matches.length === 0) return;
+    let nextMatch;
+    if (direction === 'next') {
+      nextMatch = (currentMatch + 1) % matches.length;
+    } else {
+      nextMatch = (currentMatch - 1 + matches.length) % matches.length;
+    }
+    setCurrentMatch(nextMatch);
+  };
+
   const getHighlightedLogs = () => {
     if (!searchTerm) {
       return logs;
     }
+
+    let matchIndex = 0;
     const regex = new RegExp(`(${searchTerm})`, 'gi');
+
     return logs.split('\n').map((line, i) => (
       <span key={i}>
-        {line.split(regex).map((part, j) =>
-          regex.test(part) ? (
-            <span key={j} className="highlight">
-              {part}
-            </span>
-          ) : (
-            part
-          )
-        )}
+        {line.split(regex).map((part, j) => {
+          if (regex.test(part)) {
+            const isCurrent = matchIndex === currentMatch;
+            matchIndex++;
+            return (
+              <span key={j} className={isCurrent ? 'current-match' : 'highlight'}>
+                {part}
+              </span>
+            );
+          } else {
+            return part;
+          }
+        })}
         <br />
       </span>
     ));
@@ -121,6 +170,11 @@ const LogsModal = ({ containerId, onClose }) => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <button onClick={() => goToMatch('prev')}>&lt;</button>
+            <button onClick={() => goToMatch('next')}>&gt;</button>
+            <span>
+              {matches.length > 0 ? `${currentMatch + 1} of ${matches.length}` : 'No matches'}
+            </span>
           </div>
           <div className="modal-toolbar-actions">
             <button onClick={fetchLogs} className="update-logs-button">
