@@ -46,7 +46,7 @@ const LogsModal = ({ containerId, onClose }) => {
             </div>
           </div>
           <button onClick={fetchLogs} className="update-logs-button">
-            <FaSync /> Update
+            <FaSync /> 
           </button>
         </div>
         <pre className="logs-container">
