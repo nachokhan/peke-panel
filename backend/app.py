@@ -172,7 +172,7 @@ async def stop_container(container_id: str, user: str = Depends(get_current_user
         raise HTTPException(status_code=500, detail=f"Failed to stop container {container_id}: {e}")
 
 @app.get("/api/containers/{container_id}/logs")
-async def get_container_logs(container_id: str, lines: int = 1000, user: str = Depends(get_current_user)):
+async def get_container_logs(container_id: str, lines: int = 100, user: str = Depends(get_current_user)):
     """Gets logs from a container."""
     try:
         result = subprocess.run(["docker", "logs", "--tail", str(lines), container_id], capture_output=True, text=True, check=True)

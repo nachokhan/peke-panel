@@ -1,13 +1,14 @@
 // src/components/LogsModal.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getContainerLogs } from '../api';
-import { FaSync, FaCopy, FaDownload } from 'react-icons/fa';
+import { FaSync, FaCopy, FaDownload, FaSearch } from 'react-icons/fa';
 
 const LogsModal = ({ containerId, onClose }) => {
   const [logs, setLogs] = useState('');
   const [lines, setLines] = useState(100);
   const [error, setError] = useState('');
   const [isFlashing, setIsFlashing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const lineOptions = [100, 500, 1000, 5000];
   const logsContainerRef = useRef(null);
 
@@ -69,6 +70,27 @@ const LogsModal = ({ containerId, onClose }) => {
     };
   }, [onClose]);
 
+  const getHighlightedLogs = () => {
+    if (!searchTerm) {
+      return logs;
+    }
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    return logs.split('\n').map((line, i) => (
+      <span key={i}>
+        {line.split(regex).map((part, j) =>
+          regex.test(part) ? (
+            <span key={j} className="highlight">
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+        <br />
+      </span>
+    ));
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
@@ -91,6 +113,15 @@ const LogsModal = ({ containerId, onClose }) => {
               ))}
             </div>
           </div>
+          <div className="search-container">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
           <div className="modal-toolbar-actions">
             <button onClick={fetchLogs} className="update-logs-button">
               <FaSync /> 
@@ -104,7 +135,7 @@ const LogsModal = ({ containerId, onClose }) => {
           </div>
         </div>
         <pre ref={logsContainerRef} className={`logs-container ${isFlashing ? 'flash' : ''}`}>
-          {error ? <p className="error">{error}</p> : logs}
+          {error ? <p className="error">{error}</p> : getHighlightedLogs()}
         </pre>
       </div>
     </div>
