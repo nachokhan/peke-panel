@@ -7,16 +7,19 @@ const LogsModal = ({ containerId, onClose }) => {
   const [logs, setLogs] = useState('');
   const [lines, setLines] = useState(1000);
   const [error, setError] = useState('');
+  const [isFlashing, setIsFlashing] = useState(false);
   const lineOptions = [100, 500, 1000, 5000];
   const logsContainerRef = useRef(null);
 
   const handleCopyLogs = async () => {
     try {
       await navigator.clipboard.writeText(logs);
-      // alert('Logs copied to clipboard!');
+      setIsFlashing(true);
+      setTimeout(() => {
+        setIsFlashing(false);
+      }, 300); // Flash for 200ms
     } catch (err) {
       console.error('Failed to copy logs: ', err);
-      // alert('Failed to copy logs.');
     }
   };
 
@@ -100,7 +103,7 @@ const LogsModal = ({ containerId, onClose }) => {
             </button>
           </div>
         </div>
-        <pre ref={logsContainerRef} className="logs-container">
+        <pre ref={logsContainerRef} className={`logs-container ${isFlashing ? 'flash' : ''}`}>
           {error ? <p className="error">{error}</p> : logs}
         </pre>
       </div>

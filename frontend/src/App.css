@@ -362,6 +362,15 @@ body.dark .service-card p {
   overflow-y: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
+  transition: background-color 0.1s ease-in-out; /* Smooth transition for flash */
+}
+
+.logs-container.flash {
+  background-color: #6b6f8b; /* Green flash for success */
+}
+
+body.dark .logs-container.flash {
+  background-color: #59965b; /* Darker green flash for dark mode */
 }
 
 .modal-toolbar-actions {
