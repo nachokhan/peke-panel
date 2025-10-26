@@ -102,12 +102,12 @@ const Dashboard = ({ setToken }) => {
         {services.map((service) => (
           <div key={service.id} className={`service-card status-${service.status}`}>
             <h3>{service.name}</h3>
-            <p>Status: {service.status}</p>
-            <p>Uptime: {service.uptime}</p>
-            <p>Port: {service.port}</p>
-            <p>RAM: {service.ram_usage}</p>
-            <p>CPU: {service.cpu_usage}</p>
-            <p>NET: {service.net_usage}</p>
+            <p><strong>Status:</strong> {service.status === 'running' ? '✅ Running' : service.status === 'stopped' ? '❌ Stopped' : '⚠️ Unhealthy'}</p>
+            <p>⏱️ <strong>Uptime:</strong> {service.uptime}</p>
+            <p>🔌 <strong>Port:</strong> {service.port}</p>
+            <p>💾 <strong>RAM:</strong> {service.ram_usage}</p>
+            <p>🧠 <strong>CPU:</strong> {service.cpu_usage}</p>
+            <p>🌐 <strong>NET:</strong> {service.net_usage}</p>
             <div className="service-actions">
               <button onClick={() => handleAction('start', service.id)}><FaPlay /></button>
               <button onClick={() => handleAction('stop', service.id)}><FaStop /></button>
