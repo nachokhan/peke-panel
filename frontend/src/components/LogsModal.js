@@ -1,13 +1,23 @@
 // src/components/LogsModal.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { getContainerLogs } from '../api';
-import { FaSync } from 'react-icons/fa';
+import { FaSync, FaCopy } from 'react-icons/fa';
 
 const LogsModal = ({ containerId, onClose }) => {
   const [logs, setLogs] = useState('');
   const [lines, setLines] = useState(1000);
   const [error, setError] = useState('');
   const lineOptions = [100, 500, 1000, 5000];
+
+  const handleCopyLogs = async () => {
+    try {
+      await navigator.clipboard.writeText(logs);
+      // alert('Logs copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy logs: ', err);
+      // alert('Failed to copy logs.');
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -45,9 +55,14 @@ const LogsModal = ({ containerId, onClose }) => {
               ))}
             </div>
           </div>
-          <button onClick={fetchLogs} className="update-logs-button">
-            <FaSync /> 
-          </button>
+          <div className="modal-toolbar-actions">
+            <button onClick={fetchLogs} className="update-logs-button">
+              <FaSync /> 
+            </button>
+            <button onClick={handleCopyLogs} className="update-logs-button">
+              <FaCopy />
+            </button>
+          </div>
         </div>
         <pre className="logs-container">
           {error ? <p className="error">{error}</p> : logs}
