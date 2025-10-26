@@ -27,4 +27,4 @@ services:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
       - backend
-    command: sh -c "npm install && npm start"
+    command: sh -c "npm start"
