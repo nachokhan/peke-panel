@@ -10,6 +10,7 @@ const Dashboard = ({ setToken }) => {
   const [selectedContainer, setSelectedContainer] = useState(null);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [loading, setLoading] = useState(true);
 
   const fetchStatus = async () => {
     try {
@@ -25,6 +26,8 @@ const Dashboard = ({ setToken }) => {
       setServices(updatedServices);
     } catch (error) {
       setError('Failed to fetch status');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,25 +101,32 @@ const Dashboard = ({ setToken }) => {
         </div>
       </nav>
       {error && <p className="error">{error}</p>}
-      <div className="service-list">
-        {services.map((service) => (
-          <div key={service.id} className={`service-card status-${service.status}`}>
-            <h3 className="service-card-title">{service.name}</h3>
-            <p><strong>Status:</strong> {service.status === 'running' ? '✅ Running' : service.status === 'stopped' ? '❌ Stopped' : '⚠️ Unhealthy'}</p>
-            <p>⏱️ <strong>Uptime:</strong> {service.uptime}</p>
-            <p>🔌 <strong>Port:</strong> {service.port}</p>
-            <p>💾 <strong>RAM:</strong> {service.ram_usage}</p>
-            <p>🧠 <strong>CPU:</strong> {service.cpu_usage}</p>
-            <p>🌐 <strong>NET:</strong> {service.net_usage}</p>
-            <div className="service-actions">
-              <button onClick={() => handleAction('start', service.id)}><FaPlay /></button>
-              <button onClick={() => handleAction('stop', service.id)}><FaStop /></button>
-              <button onClick={() => handleAction('restart', service.id)}><FaSync /></button>
-              <button onClick={() => setSelectedContainer(service.id)}><FaFileAlt /></button>
+      {loading ? (
+        <div className="loading-container">
+          <FaSync className="spin" />
+          <p>Getting data...</p>
+        </div>
+      ) : (
+        <div className="service-list">
+          {services.map((service) => (
+            <div key={service.id} className={`service-card status-${service.status}`}>
+              <h3 className="service-card-title">{service.name}</h3>
+              <p><strong>Status:</strong> {service.status === 'running' ? '✅ Running' : service.status === 'stopped' ? '❌ Stopped' : '⚠️ Unhealthy'}</p>
+              <p>⏱️ <strong>Uptime:</strong> {service.uptime}</p>
+              <p>🔌 <strong>Port:</strong> {service.port}</p>
+              <p>💾 <strong>RAM:</strong> {service.ram_usage}</p>
+              <p>🧠 <strong>CPU:</strong> {service.cpu_usage}</p>
+              <p>🌐 <strong>NET:</strong> {service.net_usage}</p>
+              <div className="service-actions">
+                <button onClick={() => handleAction('start', service.id)}><FaPlay /></button>
+                <button onClick={() => handleAction('stop', service.id)}><FaStop /></button>
+                <button onClick={() => handleAction('restart', service.id)}><FaSync /></button>
+                <button onClick={() => setSelectedContainer(service.id)}><FaFileAlt /></button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       {selectedContainer && (
         <LogsModal
           containerId={selectedContainer}

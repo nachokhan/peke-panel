@@ -407,3 +407,24 @@ body.dark .logs-container.flash {
   gap: 0.5rem;
   margin-left: auto;
 }
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+  flex-direction: column;
+  font-size: 1.5rem;
+  color: #555;
+}
+
+.spin {
+  animation: spin 2s linear infinite;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
