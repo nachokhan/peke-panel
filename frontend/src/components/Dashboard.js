@@ -101,7 +101,7 @@ const Dashboard = ({ setToken }) => {
       <div className="service-list">
         {services.map((service) => (
           <div key={service.id} className={`service-card status-${service.status}`}>
-            <h3>{service.name}</h3>
+            <h3 className="service-card-title">{service.name}</h3>
             <p><strong>Status:</strong> {service.status === 'running' ? '✅ Running' : service.status === 'stopped' ? '❌ Stopped' : '⚠️ Unhealthy'}</p>
             <p>⏱️ <strong>Uptime:</strong> {service.uptime}</p>
             <p>🔌 <strong>Port:</strong> {service.port}</p>

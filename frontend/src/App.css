@@ -78,15 +78,43 @@ body {
   padding: 1rem;
 }
 
+.service-card-title {
+  font-size: 1.3rem; /* Slightly smaller font size */
+  margin-top: -1rem; /* Adjust to pull it up slightly into the card's padding */
+  margin-left: -1rem; /* Adjust to pull it left into the card's padding */
+  padding: 0.5rem 1rem; /* Padding for the title background */
+  background-color: #007bff; /* Blue background for the tag */
+  color: white; /* White text on blue background */
+  border-top-left-radius: 8px; /* Match card border radius */
+  border-bottom-right-radius: 8px; /* A little curve */
+  display: inline-block; /* Shrink background to content */
+  position: relative;
+  z-index: 1; /* Ensure it's above other elements if needed */
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+}
+
+body.dark .service-card-title {
+  background-color: #0056b3; /* Darker blue for dark mode */
+  color: white;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4); /* Darker shadow */
+}
+
+.service-card h3 {
+  margin-top: 0; /* Reset default h3 margin */
+  margin-bottom: 1rem; /* Space below the title */
+}
+
+.service-card h3:not(.service-card-title) {
+  /* Ensure other h3s don't get this styling if they exist */
+  margin-top: 0;
+}
+
 .service-card {
   background: white;
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.service-card h3 {
-  margin-top: 0;
+  overflow: hidden; /* Hide parts of the title that go outside */
 }
 
 .status-running {
