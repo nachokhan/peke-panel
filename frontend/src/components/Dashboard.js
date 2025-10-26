@@ -12,7 +12,7 @@ const Dashboard = ({ setToken }) => {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [loading, setLoading] = useState(true);
 
-  const fetchStatus = async () => {
+  const fetchStatus = React.useCallback(async () => {
     try {
       const response = await getStatus();
       // Assuming the API now returns ram_usage, cpu_usage, net_usage
@@ -29,7 +29,7 @@ const Dashboard = ({ setToken }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (selectedContainer) {
