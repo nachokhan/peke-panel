@@ -60,7 +60,7 @@ const ExecModal = ({ containerId, onClose }) => {
   const [position, setPosition] = useState(getInitialPosition);
   const [size, setSize] = useState(getInitialSize);
 
-  // min size (we keep a fixed minWidth to avoid modal growing while typing)
+  // min size (fixed minWidth so typing doesn't grow modal)
   const [minSize, setMinSize] = useState({ minWidth: 400, minHeight: 200 });
 
   const draggingRef = useRef(false);
@@ -114,6 +114,14 @@ const ExecModal = ({ containerId, onClose }) => {
     const cmd = currentCmd.trim();
     if (!cmd) return;
 
+    // built-in "clear"
+    if (cmd === 'clear') {
+      setHistory([]);
+      setCurrentCmd('');
+      setError('');
+      return;
+    }
+
     try {
       setError('');
       const response = await runContainerCommand(containerId, cmd);
@@ -135,7 +143,7 @@ const ExecModal = ({ containerId, onClose }) => {
     }
   };
 
-  // Enter submits
+  // Enter submits (Shift+Enter = newline)
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -365,12 +373,12 @@ const ExecModal = ({ containerId, onClose }) => {
         <div ref={inputBarRef} className="exec-input-bar">
           <span className="exec-prompt">$</span>
           <textarea
-            ref={inputRef} // << autofocus target
+            ref={inputRef} // autofocus target
             className="exec-input"
             value={currentCmd}
             onChange={(e) => setCurrentCmd(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command and press Enter…"
+            placeholder="Type a command and press Enter… (use 'clear' to clear output)"
           />
           <button
             className="exec-run-button"
