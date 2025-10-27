@@ -25,7 +25,7 @@ ADMIN_USER = os.getenv("ADMIN_USER")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 # --- FastAPI App Initialization ---
-app = FastAPI(title="2Brains Health Monitor")
+app = FastAPI(title="Docker Monitor")
 
 app.add_middleware(
     CORSMiddleware,
