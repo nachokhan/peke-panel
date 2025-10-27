@@ -79,33 +79,32 @@ body {
 }
 
 .service-card-title {
-  font-size: 1.3rem; /* Slightly smaller font size */
-  margin-top: -1rem; /* Adjust to pull it up slightly into the card's padding */
-  margin-left: -1rem; /* Adjust to pull it left into the card's padding */
-  padding: 0.5rem 1rem; /* Padding for the title background */
-  background-color: #007bff; /* Blue background for the tag */
-  color: white; /* White text on blue background */
-  border-top-left-radius: 8px; /* Match card border radius */
-  border-bottom-right-radius: 8px; /* A little curve */
-  display: inline-block; /* Shrink background to content */
+  font-size: 1.3rem;
+  margin-top: -1rem;
+  margin-left: -1rem;
+  padding: 0.5rem 1rem;
+  background-color: #007bff;
+  color: white;
+  border-top-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  display: inline-block;
   position: relative;
-  z-index: 1; /* Ensure it's above other elements if needed */
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+  z-index: 1;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 body.dark .service-card-title {
-  background-color: #0056b3; /* Darker blue for dark mode */
+  background-color: #0056b3;
   color: white;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4); /* Darker shadow */
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
 }
 
 .service-card h3 {
-  margin-top: 0; /* Reset default h3 margin */
-  margin-bottom: 1rem; /* Space below the title */
+  margin-top: 0;
+  margin-bottom: 1rem;
 }
 
 .service-card h3:not(.service-card-title) {
-  /* Ensure other h3s don't get this styling if they exist */
   margin-top: 0;
 }
 
@@ -114,7 +113,7 @@ body.dark .service-card-title {
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  overflow: hidden; /* Hide parts of the title that go outside */
+  overflow: hidden;
 }
 
 .status-running {
@@ -150,12 +149,14 @@ body.dark .service-card-title {
 }
 
 body.dark .service-actions button {
-  color: #eee; /* Light color for icons in dark mode */
+  color: #eee;
 }
 
 body.dark .service-actions button:hover {
-  color: #007bff; /* Accent color on hover in dark mode */
+  color: #007bff;
 }
+
+/* ====== MODAL OVERLAY / FLOATING WINDOW ====== */
 
 .modal-overlay {
   position: fixed;
@@ -163,122 +164,108 @@ body.dark .service-actions button:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+
+  /* No dark backdrop anymore. We keep it transparent.
+     We also let clicks pass through EXCEPT the modal itself. */
+  background: transparent;
+
+  pointer-events: none;
   z-index: 1000;
 }
 
-.modal-content {
+/* The actual floating modal window */
+.modal-content.floating-modal {
+  position: fixed;
   background: white;
-  padding: 2rem;
   border-radius: 8px;
-  width: 80%;
-  max-width: 800px;
-  height: 80%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  border: 1px solid #444;
+
   display: flex;
   flex-direction: column;
+
+  /* allow interaction with modal even though overlay is pointer-events:none */
+  pointer-events: auto;
+
+  /* fallback min sizes; JS will also enforce via style */
+  min-width: 400px;
+  min-height: 200px;
+
+  /* to make resize look smoother */
+  box-sizing: border-box;
+  overflow: hidden;
+  z-index: 1001;
 }
 
+/* HEADER is the draggable area */
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #ccc;
-  padding-bottom: 1rem;
-}
-
-.settings-dropdown {
-  position: absolute;
-  top: 100%; /* Position below the settings button */
-  right: 0; /* Align to the right of its parent */
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 1rem;
-  z-index: 1000;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  width: 180px; /* Increased width to accommodate text */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.theme-toggle-button {
-  background: none;
-  border: none;
-  font-size: 1.2rem; /* Slightly smaller icon size */
-  cursor: pointer;
-  color: #555; /* Default icon color */
-  padding: 0.5rem;
-  display: flex; /* Make it a flex container */
-  align-items: center;
-  gap: 0.5rem; /* Space between icon and text */
-}
-
-body.dark .theme-toggle-button {
-  color: #eee; /* Dark mode icon color */
-}
-
-.settings-dropdown label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  color: #333; /* Default text color for light mode */
-}
-
-body.dark .settings-dropdown label {
-  color: #eee; /* Text color for dark mode */
-}
-
-/* Dark Mode Styles */
-body.dark {
-  background-color: #333;
+  padding: 0.5rem 0.75rem;
+  cursor: move;
+  user-select: none;
+  background-color: #222;
   color: #eee;
-}
-
-body.dark .modal-content {
-  background: #444;
-  color: #eee;
+  font-size: 0.9rem;
+  line-height: 1.2;
 }
 
 body.dark .modal-header {
   border-bottom-color: #666;
-}
-
-.modal-header h2 {
-  margin: 0;
+  background-color: #111;
+  color: #eee;
 }
 
 .close-button {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1rem;
   cursor: pointer;
+  color: #ccc;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
 }
 
+body.dark .close-button {
+  color: #ccc;
+}
+
+/* toolbar under header */
+
 .modal-toolbar {
-  padding: 1rem 0;
+  padding: 0.5rem 0.75rem;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   flex-wrap: nowrap;
+  border-bottom: 1px solid #ccc;
+  background-color: #f7f7f7;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+body.dark .modal-toolbar {
+  border-bottom-color: #666;
+  background-color: #444;
+  color: #eee;
 }
 
 .lines-selector {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .lines-selector span {
   padding-right: 0.5rem;
   font-weight: normal;
   color: #555;
-  font-size: 1.1rem; /* Increased font size */
+  font-size: 1.1rem;
 }
 
 body.dark .lines-selector span {
@@ -287,13 +274,8 @@ body.dark .lines-selector span {
 
 .lines-options {
   display: flex;
-  /* Remove border and shadow */
   border-radius: 4px;
   overflow: hidden;
-}
-
-body.dark .lines-options {
-  /* Remove border and shadow */
 }
 
 .line-option {
@@ -303,140 +285,28 @@ body.dark .lines-options {
   cursor: pointer;
   color: #555;
   transition: color 0.2s;
-  font-size: 1.1rem; /* Increased font size */
+  font-size: 1.1rem;
 }
 
 .line-option:hover {
-  color: #000; /* Darker color on hover for light mode */
+  color: #000;
 }
 
 .line-option.active {
-  color: #007bff; /* Active color for light mode */
+  color: #007bff;
   font-weight: bold;
 }
 
 body.dark .line-option {
-  color: #eee; /* Light color for text in dark mode */
+  color: #eee;
 }
 
 body.dark .line-option:hover {
-  color: #007bff; /* Accent color on hover in dark mode */
+  color: #007bff;
 }
 
 body.dark .line-option.active {
-  color: #007bff; /* Active color for dark mode */
-}
-
-.update-logs-button {
-  background: none; /* Make background transparent */
-  border: none; /* Remove border */
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  color: #555; /* Default icon color for light mode */
-  transition: color 0.2s; /* Transition for color change */
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.update-logs-button:hover {
-  color: #000; /* Darker color on hover for light mode */
-}
-
-body.dark .update-logs-button {
-  color: #eee; /* Light color for icons in dark mode */
-}
-
-body.dark .update-logs-button:hover {
-  color: #007bff; /* Accent color on hover in dark mode */
-}
-
-body.dark .settings-dropdown {
-  background: #555;
-  border-color: #666;
-}
-
-body.dark .settings-button {
-  color: #ccc;
-}
-
-body.dark .close-button {
-  color: #ccc;
-}
-
-body.dark .logs-container {
-  background: #333;
-  color: #eee;
-}
-
-body.dark .service-card {
-  background: #555;
-  color: #eee;
-}
-
-body.dark .service-card h3 {
-  color: #eee;
-}
-
-body.dark .service-card p {
-  color: #ccc;
-}
-
-.logs-container {
-  flex-grow: 1;
-  background: #222;
-  color: #eee;
-  padding: 1rem;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  transition: background-color 0.1s ease-in-out; /* Smooth transition for flash */
-}
-
-.logs-container.flash {
-  background-color: #6b6f8b; /* Green flash for success */
-}
-
-body.dark .logs-container.flash {
-  background-color: #59965b; /* Darker green flash for dark mode */
-}
-
-.modal-toolbar-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 50vh;
-  flex-direction: column;
-  font-size: 1.5rem;
-  color: #555;
-}
-
-.spin {
-  animation: spin 2s linear infinite;
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.highlight {
-  background-color: green;
-  color: white;
-}
-
-.current-match {
-  background-color: rgb(255, 255, 255);
-  color: rgb(0, 27, 205);
+  color: #007bff;
 }
 
 .search-container {
@@ -446,6 +316,8 @@ body.dark .logs-container.flash {
   background-color: #f0f0f0;
   padding: 0.5rem;
   border-radius: 8px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 body.dark .search-container {
@@ -484,4 +356,157 @@ body.dark .search-container button {
 
 body.dark .search-container span {
   color: #eee;
+}
+
+.modal-toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.update-logs-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #555;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.update-logs-button:hover {
+  color: #000;
+}
+
+body.dark .update-logs-button {
+  color: #eee;
+}
+
+body.dark .update-logs-button:hover {
+  color: #007bff;
+}
+
+/* logs area */
+
+.logs-container {
+  flex-grow: 1;
+  background: #222;
+  color: #eee;
+  padding: 1rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  transition: background-color 0.1s ease-in-out;
+  box-sizing: border-box;
+  border: 1px solid #444;
+}
+
+.logs-container.flash {
+  background-color: #6b6f8b;
+}
+
+body.dark .logs-container.flash {
+  background-color: #59965b;
+}
+
+/* highlight for search matches */
+.highlight {
+  background-color: green;
+  color: white;
+}
+
+.current-match {
+  background-color: rgb(255, 255, 255);
+  color: rgb(0, 27, 205);
+}
+
+/* resize handle */
+.resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 6px,
+    rgba(0, 0, 0, 0.2) 6px,
+    rgba(0, 0, 0, 0.2) 8px
+  );
+  border-top-left-radius: 4px;
+  border-left: 1px solid rgba(0,0,0,0.2);
+  border-top: 1px solid rgba(0,0,0,0.2);
+  background-color: rgba(255,255,255,0.4);
+  box-sizing: border-box;
+}
+
+body.dark .resize-handle {
+  background-color: rgba(255,255,255,0.1);
+  border-left: 1px solid rgba(255,255,255,0.3);
+  border-top: 1px solid rgba(255,255,255,0.3);
+}
+
+/* dark mode root styling */
+
+body.dark {
+  background-color: #333;
+  color: #eee;
+}
+
+body.dark .floating-modal {
+  background: #444;
+  color: #eee;
+  border-color: #666;
+}
+
+body.dark .modal-toolbar {
+  color: #eee;
+}
+
+body.dark .logs-container {
+  background: #222;
+  color: #eee;
+  border-color: #666;
+}
+
+body.dark .service-card {
+  background: #555;
+  color: #eee;
+}
+
+body.dark .service-card h3 {
+  color: #eee;
+}
+
+body.dark .service-card p {
+  color: #ccc;
+}
+
+/* loading state */
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+  flex-direction: column;
+  font-size: 1.5rem;
+  color: #555;
+}
+
+.spin {
+  animation: spin 2s linear infinite;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

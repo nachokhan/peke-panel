@@ -1,5 +1,11 @@
 // src/components/LogsModal.js
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useLayoutEffect,
+} from 'react';
 import { getContainerLogs } from '../api';
 import { FaSync, FaCopy, FaDownload, FaSearch } from 'react-icons/fa';
 
@@ -8,11 +14,35 @@ const LogsModal = ({ containerId, onClose }) => {
   const [lines, setLines] = useState(100);
   const [error, setError] = useState('');
   const [isFlashing, setIsFlashing] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [matches, setMatches] = useState([]);
   const [currentMatch, setCurrentMatch] = useState(0);
-  const lineOptions = [100, 500, 1000, 5000];
+
+  // floating modal position/size state
+  const [position, setPosition] = useState({ top: 80, left: 80 });
+  const [size, setSize] = useState({ width: 700, height: 400 });
+
+  // min size (calculated from toolbar contents so it never shrinks too much)
+  const [minSize, setMinSize] = useState({ minWidth: 400, minHeight: 200 });
+
+  const draggingRef = useRef(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  const resizingRef = useRef(false);
+  const resizeStartRef = useRef({
+    mouseX: 0,
+    mouseY: 0,
+    startW: 0,
+    startH: 0,
+  });
+
+  const modalRef = useRef(null);
+  const headerRef = useRef(null);
+  const toolbarRef = useRef(null);
   const logsContainerRef = useRef(null);
+
+  const lineOptions = [100, 500, 1000, 5000];
 
   const handleCopyLogs = async () => {
     try {
@@ -20,7 +50,7 @@ const LogsModal = ({ containerId, onClose }) => {
       setIsFlashing(true);
       setTimeout(() => {
         setIsFlashing(false);
-      }, 300); // Flash for 200ms
+      }, 300);
     } catch (err) {
       console.error('Failed to copy logs: ', err);
     }
@@ -52,26 +82,28 @@ const LogsModal = ({ containerId, onClose }) => {
     fetchLogs();
   }, [fetchLogs]);
 
+  // auto-scroll to bottom on new logs
   useEffect(() => {
     if (logsContainerRef.current) {
-      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+      logsContainerRef.current.scrollTop =
+        logsContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
+  // close on ESC
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         onClose();
       }
     };
-
     document.addEventListener('keydown', handleEscape);
-
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [onClose]);
 
+  // search / highlight logic
   useEffect(() => {
     if (searchTerm) {
       const regex = new RegExp(searchTerm, 'gi');
@@ -79,7 +111,11 @@ const LogsModal = ({ containerId, onClose }) => {
       logs.split('\n').forEach((line, lineIndex) => {
         let match;
         while ((match = regex.exec(line)) !== null) {
-          newMatches.push({ line: lineIndex, start: match.index, end: match.index + match[0].length });
+          newMatches.push({
+            line: lineIndex,
+            start: match.index,
+            end: match.index + match[0].length,
+          });
         }
       });
       setMatches(newMatches);
@@ -91,7 +127,8 @@ const LogsModal = ({ containerId, onClose }) => {
 
   useEffect(() => {
     if (matches.length > 0 && logsContainerRef.current) {
-      const currentMatchElement = logsContainerRef.current.querySelector('.current-match');
+      const currentMatchElement =
+        logsContainerRef.current.querySelector('.current-match');
       if (currentMatchElement) {
         currentMatchElement.scrollIntoView({
           behavior: 'smooth',
@@ -127,7 +164,10 @@ const LogsModal = ({ containerId, onClose }) => {
             const isCurrent = matchIndex === currentMatch;
             matchIndex++;
             return (
-              <span key={j} className={isCurrent ? 'current-match' : 'highlight'}>
+              <span
+                key={j}
+                className={isCurrent ? 'current-match' : 'highlight'}
+              >
                 {part}
               </span>
             );
@@ -140,14 +180,120 @@ const LogsModal = ({ containerId, onClose }) => {
     ));
   };
 
+  // ----- dragging -----
+  const onMouseDownDrag = (e) => {
+    // only start drag if header is clicked
+    if (e.target.closest('.modal-header')) {
+      draggingRef.current = true;
+      dragOffsetRef.current = {
+        x: e.clientX - position.left,
+        y: e.clientY - position.top,
+      };
+      e.preventDefault();
+    }
+  };
+
+  // ----- resizing -----
+  const onMouseDownResize = (e) => {
+    resizingRef.current = true;
+    resizeStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startW: size.width,
+      startH: size.height,
+    };
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  // global mouse move
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (draggingRef.current) {
+        const newLeft = e.clientX - dragOffsetRef.current.x;
+        const newTop = e.clientY - dragOffsetRef.current.y;
+        setPosition((prev) => ({
+          ...prev,
+          left: newLeft < 0 ? 0 : newLeft,
+          top: newTop < 0 ? 0 : newTop,
+        }));
+      } else if (resizingRef.current) {
+        const dx = e.clientX - resizeStartRef.current.mouseX;
+        const dy = e.clientY - resizeStartRef.current.mouseY;
+        let newW = resizeStartRef.current.startW + dx;
+        let newH = resizeStartRef.current.startH + dy;
+
+        if (newW < minSize.minWidth) newW = minSize.minWidth;
+        if (newH < minSize.minHeight) newH = minSize.minHeight;
+
+        setSize({
+          width: newW,
+          height: newH,
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      draggingRef.current = false;
+      resizingRef.current = false;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [minSize]);
+
+  // calculate minWidth/minHeight based on header+toolbar so toolbar never wraps/cuts
+  useLayoutEffect(() => {
+    if (!headerRef.current || !toolbarRef.current) return;
+
+    const headerRect = headerRef.current.getBoundingClientRect();
+    const toolbarRect = toolbarRef.current.getBoundingClientRect();
+
+    // vertical chrome: header + toolbar + ~150px logs room
+    const calcMinHeight = headerRect.height + toolbarRect.height + 150;
+
+    // horizontal chrome: max(header, toolbar) + some padding
+    const contentMinWidth = Math.max(headerRect.width, toolbarRect.width) + 32;
+
+    setMinSize({
+      minWidth: Math.max(400, Math.ceil(contentMinWidth)),
+      minHeight: Math.max(200, Math.ceil(calcMinHeight)),
+    });
+  }, [headerRef, toolbarRef, logs, searchTerm, lines]);
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>Logs for {containerId}</h2>
-          <button onClick={onClose} className="close-button">X</button>
+      <div
+        ref={modalRef}
+        className="modal-content floating-modal"
+        style={{
+          top: position.top,
+          left: position.left,
+          width: size.width,
+          height: size.height,
+          minWidth: minSize.minWidth,
+          minHeight: minSize.minHeight,
+        }}
+        onMouseDown={onMouseDownDrag}
+      >
+        <div ref={headerRef} className="modal-header draggable-area">
+          <h2 style={{ margin: 0, fontSize: '1rem', lineHeight: 1.2 }}>
+            Logs for {containerId}
+          </h2>
+          <button onClick={onClose} className="close-button">
+            X
+          </button>
         </div>
-        <div className="modal-toolbar">
+
+        <div
+          ref={toolbarRef}
+          className="modal-toolbar"
+          style={{ flexShrink: 0 }}
+        >
           <div className="lines-selector">
             <span>Lines:</span>
             <div className="lines-options">
@@ -162,6 +308,7 @@ const LogsModal = ({ containerId, onClose }) => {
               ))}
             </div>
           </div>
+
           <div className="search-container">
             <FaSearch />
             <input
@@ -173,12 +320,16 @@ const LogsModal = ({ containerId, onClose }) => {
             <button onClick={() => goToMatch('prev')}>&lt;</button>
             <button onClick={() => goToMatch('next')}>&gt;</button>
             <span>
-              {searchTerm && (matches.length > 0 ? `${currentMatch + 1} of ${matches.length}` : 'No matches')}
+              {searchTerm &&
+                (matches.length > 0
+                  ? `${currentMatch + 1} of ${matches.length}`
+                  : 'No matches')}
             </span>
           </div>
+
           <div className="modal-toolbar-actions">
             <button onClick={fetchLogs} className="update-logs-button">
-              <FaSync /> 
+              <FaSync />
             </button>
             <button onClick={handleCopyLogs} className="update-logs-button">
               <FaCopy />
@@ -188,9 +339,39 @@ const LogsModal = ({ containerId, onClose }) => {
             </button>
           </div>
         </div>
-        <pre ref={logsContainerRef} className={`logs-container ${isFlashing ? 'flash' : ''}`}>
-          {error ? <p className="error">{error}</p> : getHighlightedLogs()}
-        </pre>
+
+        {/* logs wrapper: 95% width of modal, centered */}
+        <div
+          style={{
+            flexGrow: 1,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'stretch',
+            overflow: 'hidden',
+          }}
+        >
+          <pre
+            ref={logsContainerRef}
+            className={`logs-container ${isFlashing ? 'flash' : ''}`}
+            style={{
+              width: '95%',
+              margin: 0,
+              borderRadius: '6px',
+            }}
+          >
+            {error ? (
+              <p className="error">{error}</p>
+            ) : (
+              getHighlightedLogs()
+            )}
+          </pre>
+        </div>
+
+        {/* bottom-right resize handle */}
+        <div
+          className="resize-handle"
+          onMouseDown={onMouseDownResize}
+        />
       </div>
     </div>
   );
