@@ -96,7 +96,7 @@ const Dashboard = ({ setToken }) => {
   return (
     <div className="dashboard-container">
       <nav>
-        <h1>2Brains Health Monitor</h1>
+        <h1>Peke Panel - (Dockerized) Web Docker Manager</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ position: 'relative' }}>
             <button
