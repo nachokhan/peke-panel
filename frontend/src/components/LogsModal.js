@@ -322,22 +322,23 @@ const LogsModal = ({ containerId, onClose }) => {
 
   // calculate minWidth/minHeight based on header+toolbar so toolbar never wraps/cuts
   useLayoutEffect(() => {
-    if (!headerRef.current || !toolbarRef.current) return;
+  if (!headerRef.current || !toolbarRef.current) return;
 
-    const headerRect = headerRef.current.getBoundingClientRect();
-    const toolbarRect = toolbarRef.current.getBoundingClientRect();
+  const headerRect = headerRef.current.getBoundingClientRect();
+  const toolbarRect = toolbarRef.current.getBoundingClientRect();
 
-    // vertical chrome: header + toolbar + ~150px logs room
-    const calcMinHeight = headerRect.height + toolbarRect.height + 150;
+  // altura mínima: header + toolbar + ~150px de área de logs
+  const calcMinHeight = headerRect.height + toolbarRect.height + 150;
 
-    // horizontal chrome: max(header, toolbar) + some padding
-    const contentMinWidth = Math.max(headerRect.width, toolbarRect.width) + 32;
+  // ancho mínimo CONSTANTE
+  // ya no dependemos del ancho de la toolbar (que cambia cuando tipeás),
+  // así evitamos que el modal se siga estirando.
+  setMinSize({
+    minWidth: 400,
+    minHeight: Math.max(200, Math.ceil(calcMinHeight)),
+  });
+}, [logs, searchTerm, lines]);
 
-    setMinSize({
-      minWidth: Math.max(400, Math.ceil(contentMinWidth)),
-      minHeight: Math.max(200, Math.ceil(calcMinHeight)),
-    });
-  }, [headerRef, toolbarRef, logs, searchTerm, lines]);
 
   return (
     <div className="modal-overlay">
