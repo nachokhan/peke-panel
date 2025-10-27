@@ -19,9 +19,49 @@ const LogsModal = ({ containerId, onClose }) => {
   const [matches, setMatches] = useState([]);
   const [currentMatch, setCurrentMatch] = useState(0);
 
-  // floating modal position/size state
-  const [position, setPosition] = useState({ top: 80, left: 80 });
-  const [size, setSize] = useState({ width: 700, height: 400 });
+ // load persisted position (shared for all containers)
+ const getInitialPosition = () => {
+   try {
+     const raw = localStorage.getItem('logsModalPos');
+     if (!raw) {
+       return { top: 80, left: 80 };
+     }
+     const parsed = JSON.parse(raw);
+     if (
+       typeof parsed.top === 'number' &&
+       typeof parsed.left === 'number'
+     ) {
+       return { top: parsed.top, left: parsed.left };
+     }
+     return { top: 80, left: 80 };
+   } catch {
+     return { top: 80, left: 80 };
+   }
+ };
+
+ // load persisted size (shared for all containers)
+ const getInitialSize = () => {
+   try {
+     const raw = localStorage.getItem('logsModalSize');
+     if (!raw) {
+       return { width: 700, height: 400 };
+     }
+     const parsed = JSON.parse(raw);
+     if (
+       typeof parsed.width === 'number' &&
+       typeof parsed.height === 'number'
+     ) {
+       return { width: parsed.width, height: parsed.height };
+     }
+     return { width: 700, height: 400 };
+   } catch {
+     return { width: 700, height: 400 };
+   }
+ };
+
+ // floating modal position/size state (now initialized from localStorage)
+ const [position, setPosition] = useState(getInitialPosition);
+ const [size, setSize] = useState(getInitialSize); 
 
   // min size (calculated from toolbar contents so it never shrinks too much)
   const [minSize, setMinSize] = useState({ minWidth: 400, minHeight: 200 });
@@ -212,11 +252,14 @@ const LogsModal = ({ containerId, onClose }) => {
       if (draggingRef.current) {
         const newLeft = e.clientX - dragOffsetRef.current.x;
         const newTop = e.clientY - dragOffsetRef.current.y;
-        setPosition((prev) => ({
-          ...prev,
-          left: newLeft < 0 ? 0 : newLeft,
-          top: newTop < 0 ? 0 : newTop,
-        }));
+        setPosition((prev) => {
+         const nextPos = {
+           ...prev,
+           left: newLeft < 0 ? 0 : newLeft,
+           top: newTop < 0 ? 0 : newTop,
+         };
+         return nextPos;
+       });
       } else if (resizingRef.current) {
         const dx = e.clientX - resizeStartRef.current.mouseX;
         const dy = e.clientY - resizeStartRef.current.mouseY;
@@ -227,15 +270,46 @@ const LogsModal = ({ containerId, onClose }) => {
         if (newH < minSize.minHeight) newH = minSize.minHeight;
 
         setSize({
-          width: newW,
-          height: newH,
-        });
+         width: newW,
+         height: newH,
+       });
       }
     };
 
     const handleMouseUp = () => {
+      const wasDragging = draggingRef.current;
+      const wasResizing = resizingRef.current;
+
       draggingRef.current = false;
       resizingRef.current = false;
+
+      // persist both position and size when mouse is released,
+      // regardless of whether it was drag or resize.
+      // this way, when you close and reopen, you get last state.
+      try {
+        // save position
+        localStorage.setItem(
+          'logsModalPos',
+          JSON.stringify({
+            top: position.top,
+            left: position.left,
+          })
+        );
+      } catch {
+        /* ignore storage errors */
+      }
+
+      try {
+        localStorage.setItem(
+          'logsModalSize',
+          JSON.stringify({
+            width: size.width,
+            height: size.height,
+          })
+        );
+      } catch {
+        /* ignore storage errors */
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -243,8 +317,8 @@ const LogsModal = ({ containerId, onClose }) => {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [minSize]);
+   };
+ }, [minSize, size, position]);
 
   // calculate minWidth/minHeight based on header+toolbar so toolbar never wraps/cuts
   useLayoutEffect(() => {
