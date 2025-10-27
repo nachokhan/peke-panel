@@ -4,23 +4,24 @@ import React, {
   useEffect,
   useRef,
   useLayoutEffect,
+  useMemo,
 } from 'react';
 import { runContainerCommand } from '../api';
 import { FaTerminal, FaSearch } from 'react-icons/fa';
 
 const ExecModal = ({ containerId, onClose }) => {
-  // history de la sesión "stateless": cada comando ejecutado con su salida
+  // historial de la pseudo-terminal
   const [history, setHistory] = useState([]);
 
-  // input actual del usuario
+  // comando actual tipeándose
   const [currentCmd, setCurrentCmd] = useState('');
 
-  // error de request al backend
+  // error global (de request al backend)
   const [error, setError] = useState('');
 
-  // --- BÚSQUEDA ---
+  // búsqueda
   const [searchTerm, setSearchTerm] = useState('');
-  const [matches, setMatches] = useState([]); // [{blockIdx, lineType, lineTextIndex, start, end}, ...] aunque no usamos todos los campos
+  const [matches, setMatches] = useState([]); // [{ lineIndex, start, end }, ...] en orden global
   const [currentMatch, setCurrentMatch] = useState(0);
 
   // posición / tamaño persistente del modal
@@ -65,7 +66,7 @@ const ExecModal = ({ containerId, onClose }) => {
   const [position, setPosition] = useState(getInitialPosition);
   const [size, setSize] = useState(getInitialSize);
 
-  // tamaño mínimo dinámico
+  // min size dinámico
   const [minSize, setMinSize] = useState({ minWidth: 400, minHeight: 200 });
 
   // refs para drag/resize
@@ -85,16 +86,16 @@ const ExecModal = ({ containerId, onClose }) => {
   const toolbarRef = useRef(null);
   const inputBarRef = useRef(null);
   const outputRef = useRef(null);
-  const inputRef = useRef(null); // textarea input comando
+  const inputRef = useRef(null); // textarea del comando
 
-  // autofocus en el textarea cuando abre el modal
+  // autofocus al abrir
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
-  // autoscroll al fondo cuando llega nueva salida
+  // autoscroll al fondo cuando cambia el historial
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
@@ -115,27 +116,27 @@ const ExecModal = ({ containerId, onClose }) => {
     };
   }, [onClose]);
 
-  // Ejecutar comando
+  // ejecutar comando
   const executeCommand = async () => {
     const cmd = currentCmd.trim();
     if (!cmd) return;
 
-    // comando especial 'clear' (limpia vista local, no llama backend)
+    // comando especial local: clear
     if (cmd === 'clear') {
-        setHistory([]);
-        setCurrentCmd('');
-        setError('');
-        // limpiar resultados de búsqueda también, porque el buffer cambió radicalmente
-        setSearchTerm('');
-        setMatches([]);
-        setCurrentMatch(0);
-        return;
+      setHistory([]);
+      setCurrentCmd('');
+      setError('');
+      // también limpiamos búsqueda porque el buffer cambió
+      setSearchTerm('');
+      setMatches([]);
+      setCurrentMatch(0);
+      return;
     }
 
     try {
       setError('');
       const response = await runContainerCommand(containerId, cmd);
-      // se asume que el backend devuelve:
+      // backend esperado:
       // { stdout: "...", stderr: "...", returncode: <int> }
       const { stdout, stderr, returncode } = response.data;
 
@@ -150,13 +151,12 @@ const ExecModal = ({ containerId, onClose }) => {
       ]);
 
       setCurrentCmd('');
-
     } catch (err) {
       setError('Failed to execute command');
     }
   };
 
-  // Enter = ejecutar; Shift+Enter = newline
+  // Enter ejecuta, Shift+Enter = newline
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -164,26 +164,27 @@ const ExecModal = ({ containerId, onClose }) => {
     }
   };
 
-  // --- Construimos una vista “line-based” de toda la terminal para búsqueda y render ---
-  // Esto produce un array de bloques "visibles" tal como se muestran,
-  // línea por línea: "$ comando", stdout lines, stderr lines, "exit code"
-  const buildTerminalLines = () => {
+  // ---- Representación “line-based” del buffer visible en la terminal ----
+  // Esto lo memorizamos para que NO cambie de identidad en cada render
+  // (sólo cambia si cambian history o error).
+  const terminalLines = useMemo(() => {
     const lines = [];
+
     history.forEach((item) => {
-      // línea del comando
-      lines.push({ text: `$ ${item.command}`, color: '#0ff' });
+      // línea del comando (cyan)
+      lines.push({ text: `$ ${item.command}`, color: '#0ff', small: false });
 
       // stdout (verde)
       if (item.stdout) {
         item.stdout.split('\n').forEach((l) => {
-          lines.push({ text: l, color: '#0f0' });
+          lines.push({ text: l, color: '#0f0', small: false });
         });
       }
 
       // stderr (rojo)
       if (item.stderr) {
         item.stderr.split('\n').forEach((l) => {
-          lines.push({ text: l, color: '#f00' });
+          lines.push({ text: l, color: '#f00', small: false });
         });
       }
 
@@ -195,15 +196,18 @@ const ExecModal = ({ containerId, onClose }) => {
       });
     });
 
-    // también metemos el error global si existe (lo mostramos arriba normalmente)
     if (error) {
-      lines.push({ text: `[ERROR] ${error}`, color: 'red' });
+      lines.push({
+        text: `[ERROR] ${error}`,
+        color: 'red',
+        small: false,
+      });
     }
 
     return lines;
-  };
+  }, [history, error]);
 
-  // --- BÚSQUEDA: calcular matches cuando cambia searchTerm o history ---
+  // --- Recalcular matches cuando cambia searchTerm o cambia el contenido terminalLines ---
   useEffect(() => {
     if (!searchTerm) {
       setMatches([]);
@@ -213,9 +217,8 @@ const ExecModal = ({ containerId, onClose }) => {
 
     const regex = new RegExp(searchTerm, 'gi');
     const newMatches = [];
-    const lines = buildTerminalLines();
 
-    lines.forEach((lineObj, lineIndex) => {
+    terminalLines.forEach((lineObj, lineIndex) => {
       const line = lineObj.text || '';
       let match;
       while ((match = regex.exec(line)) !== null) {
@@ -229,9 +232,29 @@ const ExecModal = ({ containerId, onClose }) => {
 
     setMatches(newMatches);
     setCurrentMatch(0);
-  }, [searchTerm, history, error]);
+  }, [searchTerm, terminalLines]);
 
-  // al cambiar currentMatch, scrollear hasta el match activo
+  // --- matchOrderMap: para cada línea, lista de índices globales de matches ---
+  // Ej:
+  // matches = [
+  //   { lineIndex: 4, ... }, // global 0
+  //   { lineIndex: 4, ... }, // global 1
+  //   { lineIndex: 7, ... }, // global 2
+  // ]
+  // matchOrderMap[4] = [0,1]
+  // matchOrderMap[7] = [2]
+  const matchOrderMap = useMemo(() => {
+    const map = {};
+    matches.forEach((m, globalIdx) => {
+      if (!map[m.lineIndex]) {
+        map[m.lineIndex] = [];
+      }
+      map[m.lineIndex].push(globalIdx);
+    });
+    return map;
+  }, [matches]);
+
+  // cuando currentMatch cambia, scrollear al match activo
   useEffect(() => {
     if (matches.length > 0 && outputRef.current) {
       const currentMatchElement =
@@ -245,7 +268,7 @@ const ExecModal = ({ containerId, onClose }) => {
     }
   }, [currentMatch, matches]);
 
-  // navegar matches
+  // navegación prev/next
   const goToMatch = (direction) => {
     if (matches.length === 0) return;
     let nextMatch;
@@ -257,52 +280,47 @@ const ExecModal = ({ containerId, onClose }) => {
     setCurrentMatch(nextMatch);
   };
 
-  // helper para resaltar coincidencias en una línea dada
-  // usando las mismas clases CSS que LogsModal:
-  //  - .highlight para coincidencias no actuales
-  //  - .current-match para coincidencia activa
-  const renderHighlightedLine = (() => {
-    return (text, lineColorStyle) => {
-      if (!searchTerm) {
+  // resaltar una línea con los spans .highlight / .current-match
+  const renderHighlightedLine = (lineIndex, text, lineColorStyle) => {
+    if (!searchTerm) {
+      return <span style={lineColorStyle}>{text}</span>;
+    }
+
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+
+    // cuántas coincidencias locales vamos contando en ESTA línea
+    let localOccurrence = 0;
+
+    return text.split(regex).map((part, j) => {
+      const isCaptured = j % 2 === 1; // impares = match
+      if (!isCaptured) {
+        // chunk sin match
         return (
-          <span style={lineColorStyle}>
-            {text}
+          <span key={j} style={lineColorStyle}>
+            {part}
+          </span>
+        );
+      } else {
+        // este chunk SÍ es una coincidencia
+        const globalIdxForThisPart =
+          matchOrderMap[lineIndex]?.[localOccurrence];
+
+        const isCurrent = globalIdxForThisPart === currentMatch;
+        localOccurrence++;
+
+        return (
+          <span
+            key={j}
+            className={isCurrent ? 'current-match' : 'highlight'}
+          >
+            {part}
           </span>
         );
       }
+    });
+  };
 
-      // Nota: usamos split con grupo capturante para preservar matches
-      // y poder envolverlos en <span className="highlight"...>.
-      // Luego vamos asignando current-match a la coincidencia activa (por índice global).
-      const regex = new RegExp(`(${searchTerm})`, 'gi');
-
-      let globalMatchCounter = 0;
-
-      return text.split(regex).map((part, j) => {
-        const isCaptured = j % 2 === 1; // las posiciones impares son el grupo capturado
-        if (!isCaptured) {
-          // chunk de texto que no es match -> mantener color original
-          return (
-            <span key={j} style={lineColorStyle}>
-              {part}
-            </span>
-          );
-        } else {
-          const isCurrent = globalMatchCounter === currentMatch;
-          const className = isCurrent ? 'current-match' : 'highlight';
-          const node = (
-            <span key={j} className={className}>
-              {part}
-            </span>
-          );
-          globalMatchCounter++;
-          return node;
-        }
-      });
-    };
-  })();
-
-  // Drag start
+  // drag start
   const onMouseDownDrag = (e) => {
     if (e.target.closest('.modal-header')) {
       draggingRef.current = true;
@@ -314,7 +332,7 @@ const ExecModal = ({ containerId, onClose }) => {
     }
   };
 
-  // Resize start
+  // resize start
   const onMouseDownResize = (e) => {
     resizingRef.current = true;
     resizeStartRef.current = {
@@ -327,7 +345,7 @@ const ExecModal = ({ containerId, onClose }) => {
     e.stopPropagation();
   };
 
-  // global mousemove/mouseup
+  // global mousemove / mouseup
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (draggingRef.current) {
@@ -358,7 +376,7 @@ const ExecModal = ({ containerId, onClose }) => {
       draggingRef.current = false;
       resizingRef.current = false;
 
-      // persist position
+      // persistir posición
       try {
         localStorage.setItem(
           'execModalPos',
@@ -371,7 +389,7 @@ const ExecModal = ({ containerId, onClose }) => {
         /* ignore */
       }
 
-      // persist size
+      // persistir tamaño
       try {
         localStorage.setItem(
           'execModalSize',
@@ -393,8 +411,7 @@ const ExecModal = ({ containerId, onClose }) => {
     };
   }, [minSize, position, size]);
 
-  // calcular minHeight dinámico:
-  // header + toolbar + inputBar + ~120px contenido scroll
+  // minHeight dinámico (pero minWidth fijo para que la barra search no fuerce crecimiento)
   useLayoutEffect(() => {
     if (!headerRef.current || !toolbarRef.current || !inputBarRef.current)
       return;
@@ -407,13 +424,10 @@ const ExecModal = ({ containerId, onClose }) => {
       headerRect.height + toolbarRect.height + inputRect.height + 120;
 
     setMinSize({
-      minWidth: 400, // mantener fijo para que el textarea no agrande el modal
+      minWidth: 400, // fijo
       minHeight: Math.max(200, Math.ceil(calcMinHeight)),
     });
   }, [currentCmd, searchTerm]);
-
-  // Render
-  const terminalLines = buildTerminalLines();
 
   return (
     <div className="modal-overlay">
@@ -431,7 +445,7 @@ const ExecModal = ({ containerId, onClose }) => {
         }}
         onMouseDown={onMouseDownDrag}
       >
-        {/* HEADER (área drag) */}
+        {/* HEADER (draggable) */}
         <div
           ref={headerRef}
           className="modal-header draggable-area"
@@ -484,7 +498,7 @@ const ExecModal = ({ containerId, onClose }) => {
           </div>
         </div>
 
-        {/* OUTPUT */}
+        {/* OUTPUT (buffer terminal) */}
         <div
           style={{
             flexGrow: 1,
@@ -516,6 +530,7 @@ const ExecModal = ({ containerId, onClose }) => {
                 }}
               >
                 {renderHighlightedLine(
+                  idx,
                   lineObj.text || '',
                   { color: lineObj.color || '#0f0' }
                 )}
@@ -525,16 +540,20 @@ const ExecModal = ({ containerId, onClose }) => {
         </div>
 
         {/* INPUT BAR */}
-        <div ref={inputBarRef} className="exec-input-bar" style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '0.5rem',
-          padding: '0.5rem 0.75rem',
-          borderTop: '1px solid #444',
-          backgroundColor: '#1a1a1a',
-          color: '#eee',
-          flexShrink: 0,
-        }}>
+        <div
+          ref={inputBarRef}
+          className="exec-input-bar"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+            padding: '0.5rem 0.75rem',
+            borderTop: '1px solid #444',
+            backgroundColor: '#1a1a1a',
+            color: '#eee',
+            flexShrink: 0,
+          }}
+        >
           <span
             className="exec-prompt"
             style={{
