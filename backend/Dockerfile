@@ -1,7 +1,6 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+# Base stage
+FROM python:3.12-slim as base
 
-# Set the working directory in the container
 WORKDIR /app
 
 # Install docker-ce-cli
@@ -12,15 +11,17 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y docker-ce-cli
 
-# Copy the requirements file and install the dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
 COPY . .
 
-# I dont want to expose backend port directly
-# EXPOSE 8000
+# Development stage
+FROM base as development
 
-# Run app.py when the container launches
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# Production stage
+FROM base as production
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

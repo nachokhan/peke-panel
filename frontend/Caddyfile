@@ -1,0 +1,19 @@
+:80 {
+
+    # --- API Routing ---
+    # Everything that starts with /api/ goes directly to the backend.
+    @api path /api/*
+
+    handle @api {
+        reverse_proxy backend:8000
+    }
+
+    # --- APP Routing (React SPA) ---
+    # Everything else is static content and goes to index.html
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        encode gzip
+        file_server
+    }
+}

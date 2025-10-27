@@ -3,9 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
+      target: production
     volumes:
-      - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - SECRET_KEY=${SECRET_KEY}
@@ -16,14 +15,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      target: production
     ports:
-      - "${FRONTEND_PORT}:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
+      - "127.0.0.1:${FRONTEND_PORT}:80"
     depends_on:
       - backend
-    command: sh -c "npm start"
