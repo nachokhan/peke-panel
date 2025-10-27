@@ -6,19 +6,24 @@ import React, {
   useLayoutEffect,
 } from 'react';
 import { runContainerCommand } from '../api';
-import { FaTerminal } from 'react-icons/fa';
+import { FaTerminal, FaSearch } from 'react-icons/fa';
 
 const ExecModal = ({ containerId, onClose }) => {
-  // terminal session history
+  // history de la sesión "stateless": cada comando ejecutado con su salida
   const [history, setHistory] = useState([]);
 
-  // current input command
+  // input actual del usuario
   const [currentCmd, setCurrentCmd] = useState('');
 
-  // network / exec error
+  // error de request al backend
   const [error, setError] = useState('');
 
-  // load persisted position/size for this modal type
+  // --- BÚSQUEDA ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [matches, setMatches] = useState([]); // [{blockIdx, lineType, lineTextIndex, start, end}, ...] aunque no usamos todos los campos
+  const [currentMatch, setCurrentMatch] = useState(0);
+
+  // posición / tamaño persistente del modal
   const getInitialPosition = () => {
     try {
       const raw = localStorage.getItem('execModalPos');
@@ -60,9 +65,10 @@ const ExecModal = ({ containerId, onClose }) => {
   const [position, setPosition] = useState(getInitialPosition);
   const [size, setSize] = useState(getInitialSize);
 
-  // min size (fixed minWidth so typing doesn't grow modal)
+  // tamaño mínimo dinámico
   const [minSize, setMinSize] = useState({ minWidth: 400, minHeight: 200 });
 
+  // refs para drag/resize
   const draggingRef = useRef(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
 
@@ -74,28 +80,28 @@ const ExecModal = ({ containerId, onClose }) => {
     startH: 0,
   });
 
+  // refs DOM
   const headerRef = useRef(null);
+  const toolbarRef = useRef(null);
   const inputBarRef = useRef(null);
   const outputRef = useRef(null);
+  const inputRef = useRef(null); // textarea input comando
 
-  // textarea ref for autofocus
-  const inputRef = useRef(null);
-
-  // autofocus textarea when modal mounts
+  // autofocus en el textarea cuando abre el modal
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
-  // auto-scroll output when history updates
+  // autoscroll al fondo cuando llega nueva salida
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [history]);
 
-  // close on ESC
+  // cerrar con ESC
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
@@ -109,22 +115,28 @@ const ExecModal = ({ containerId, onClose }) => {
     };
   }, [onClose]);
 
-  // run command
+  // Ejecutar comando
   const executeCommand = async () => {
     const cmd = currentCmd.trim();
     if (!cmd) return;
 
-    // built-in "clear"
+    // comando especial 'clear' (limpia vista local, no llama backend)
     if (cmd === 'clear') {
-      setHistory([]);
-      setCurrentCmd('');
-      setError('');
-      return;
+        setHistory([]);
+        setCurrentCmd('');
+        setError('');
+        // limpiar resultados de búsqueda también, porque el buffer cambió radicalmente
+        setSearchTerm('');
+        setMatches([]);
+        setCurrentMatch(0);
+        return;
     }
 
     try {
       setError('');
       const response = await runContainerCommand(containerId, cmd);
+      // se asume que el backend devuelve:
+      // { stdout: "...", stderr: "...", returncode: <int> }
       const { stdout, stderr, returncode } = response.data;
 
       setHistory((prev) => [
@@ -138,12 +150,13 @@ const ExecModal = ({ containerId, onClose }) => {
       ]);
 
       setCurrentCmd('');
+
     } catch (err) {
       setError('Failed to execute command');
     }
   };
 
-  // Enter submits (Shift+Enter = newline)
+  // Enter = ejecutar; Shift+Enter = newline
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -151,7 +164,145 @@ const ExecModal = ({ containerId, onClose }) => {
     }
   };
 
-  // dragging logic
+  // --- Construimos una vista “line-based” de toda la terminal para búsqueda y render ---
+  // Esto produce un array de bloques "visibles" tal como se muestran,
+  // línea por línea: "$ comando", stdout lines, stderr lines, "exit code"
+  const buildTerminalLines = () => {
+    const lines = [];
+    history.forEach((item) => {
+      // línea del comando
+      lines.push({ text: `$ ${item.command}`, color: '#0ff' });
+
+      // stdout (verde)
+      if (item.stdout) {
+        item.stdout.split('\n').forEach((l) => {
+          lines.push({ text: l, color: '#0f0' });
+        });
+      }
+
+      // stderr (rojo)
+      if (item.stderr) {
+        item.stderr.split('\n').forEach((l) => {
+          lines.push({ text: l, color: '#f00' });
+        });
+      }
+
+      // exit code (gris)
+      lines.push({
+        text: `exit code: ${item.returncode}`,
+        color: '#888',
+        small: true,
+      });
+    });
+
+    // también metemos el error global si existe (lo mostramos arriba normalmente)
+    if (error) {
+      lines.push({ text: `[ERROR] ${error}`, color: 'red' });
+    }
+
+    return lines;
+  };
+
+  // --- BÚSQUEDA: calcular matches cuando cambia searchTerm o history ---
+  useEffect(() => {
+    if (!searchTerm) {
+      setMatches([]);
+      setCurrentMatch(0);
+      return;
+    }
+
+    const regex = new RegExp(searchTerm, 'gi');
+    const newMatches = [];
+    const lines = buildTerminalLines();
+
+    lines.forEach((lineObj, lineIndex) => {
+      const line = lineObj.text || '';
+      let match;
+      while ((match = regex.exec(line)) !== null) {
+        newMatches.push({
+          lineIndex,
+          start: match.index,
+          end: match.index + match[0].length,
+        });
+      }
+    });
+
+    setMatches(newMatches);
+    setCurrentMatch(0);
+  }, [searchTerm, history, error]);
+
+  // al cambiar currentMatch, scrollear hasta el match activo
+  useEffect(() => {
+    if (matches.length > 0 && outputRef.current) {
+      const currentMatchElement =
+        outputRef.current.querySelector('.current-match');
+      if (currentMatchElement) {
+        currentMatchElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }
+    }
+  }, [currentMatch, matches]);
+
+  // navegar matches
+  const goToMatch = (direction) => {
+    if (matches.length === 0) return;
+    let nextMatch;
+    if (direction === 'next') {
+      nextMatch = (currentMatch + 1) % matches.length;
+    } else {
+      nextMatch = (currentMatch - 1 + matches.length) % matches.length;
+    }
+    setCurrentMatch(nextMatch);
+  };
+
+  // helper para resaltar coincidencias en una línea dada
+  // usando las mismas clases CSS que LogsModal:
+  //  - .highlight para coincidencias no actuales
+  //  - .current-match para coincidencia activa
+  const renderHighlightedLine = (() => {
+    return (text, lineColorStyle) => {
+      if (!searchTerm) {
+        return (
+          <span style={lineColorStyle}>
+            {text}
+          </span>
+        );
+      }
+
+      // Nota: usamos split con grupo capturante para preservar matches
+      // y poder envolverlos en <span className="highlight"...>.
+      // Luego vamos asignando current-match a la coincidencia activa (por índice global).
+      const regex = new RegExp(`(${searchTerm})`, 'gi');
+
+      let globalMatchCounter = 0;
+
+      return text.split(regex).map((part, j) => {
+        const isCaptured = j % 2 === 1; // las posiciones impares son el grupo capturado
+        if (!isCaptured) {
+          // chunk de texto que no es match -> mantener color original
+          return (
+            <span key={j} style={lineColorStyle}>
+              {part}
+            </span>
+          );
+        } else {
+          const isCurrent = globalMatchCounter === currentMatch;
+          const className = isCurrent ? 'current-match' : 'highlight';
+          const node = (
+            <span key={j} className={className}>
+              {part}
+            </span>
+          );
+          globalMatchCounter++;
+          return node;
+        }
+      });
+    };
+  })();
+
+  // Drag start
   const onMouseDownDrag = (e) => {
     if (e.target.closest('.modal-header')) {
       draggingRef.current = true;
@@ -163,7 +314,7 @@ const ExecModal = ({ containerId, onClose }) => {
     }
   };
 
-  // resizing logic
+  // Resize start
   const onMouseDownResize = (e) => {
     resizingRef.current = true;
     resizeStartRef.current = {
@@ -176,7 +327,7 @@ const ExecModal = ({ containerId, onClose }) => {
     e.stopPropagation();
   };
 
-  // global mousemove/mouseup for drag+resize
+  // global mousemove/mouseup
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (draggingRef.current) {
@@ -217,7 +368,7 @@ const ExecModal = ({ containerId, onClose }) => {
           })
         );
       } catch {
-        /* ignore storage errors */
+        /* ignore */
       }
 
       // persist size
@@ -230,7 +381,7 @@ const ExecModal = ({ containerId, onClose }) => {
           })
         );
       } catch {
-        /* ignore storage errors */
+        /* ignore */
       }
     };
 
@@ -242,21 +393,27 @@ const ExecModal = ({ containerId, onClose }) => {
     };
   }, [minSize, position, size]);
 
-  // compute minHeight only (stable minWidth = 400)
+  // calcular minHeight dinámico:
+  // header + toolbar + inputBar + ~120px contenido scroll
   useLayoutEffect(() => {
-    if (!headerRef.current || !inputBarRef.current) return;
+    if (!headerRef.current || !toolbarRef.current || !inputBarRef.current)
+      return;
 
     const headerRect = headerRef.current.getBoundingClientRect();
+    const toolbarRect = toolbarRef.current.getBoundingClientRect();
     const inputRect = inputBarRef.current.getBoundingClientRect();
 
-    // altura mínima: header + input bar + ~120px para output visible
-    const calcMinHeight = headerRect.height + inputRect.height + 120;
+    const calcMinHeight =
+      headerRect.height + toolbarRect.height + inputRect.height + 120;
 
-    setMinSize((prev) => ({
-      minWidth: 400, // fijo, evita que el modal crezca con el texto
+    setMinSize({
+      minWidth: 400, // mantener fijo para que el textarea no agrande el modal
       minHeight: Math.max(200, Math.ceil(calcMinHeight)),
-    }));
-  }, [currentCmd]);
+    });
+  }, [currentCmd, searchTerm]);
+
+  // Render
+  const terminalLines = buildTerminalLines();
 
   return (
     <div className="modal-overlay">
@@ -274,7 +431,7 @@ const ExecModal = ({ containerId, onClose }) => {
         }}
         onMouseDown={onMouseDownDrag}
       >
-        {/* HEADER */}
+        {/* HEADER (área drag) */}
         <div
           ref={headerRef}
           className="modal-header draggable-area"
@@ -302,7 +459,32 @@ const ExecModal = ({ containerId, onClose }) => {
           </button>
         </div>
 
-        {/* OUTPUT AREA */}
+        {/* TOOLBAR (búsqueda) */}
+        <div
+          ref={toolbarRef}
+          className="modal-toolbar"
+          style={{ flexShrink: 0, alignItems: 'center', gap: '1rem' }}
+        >
+          <div className="search-container">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button onClick={() => goToMatch('prev')}>&lt;</button>
+            <button onClick={() => goToMatch('next')}>&gt;</button>
+            <span>
+              {searchTerm &&
+                (matches.length > 0
+                  ? `${currentMatch + 1} of ${matches.length}`
+                  : 'No matches')}
+            </span>
+          </div>
+        </div>
+
+        {/* OUTPUT */}
         <div
           style={{
             flexGrow: 1,
@@ -324,72 +506,90 @@ const ExecModal = ({ containerId, onClose }) => {
               fontSize: '0.8rem',
             }}
           >
-            {error && (
-              <div style={{ color: 'red', marginBottom: '1rem' }}>
-                {error}
-              </div>
-            )}
-
-            {history.map((item, idx) => (
-              <div key={idx} style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#0ff' }}>$ {item.command}</div>
-
-                {item.stdout && (
-                  <div
-                    style={{
-                      whiteSpace: 'pre-wrap',
-                      color: '#0f0',
-                    }}
-                  >
-                    {item.stdout}
-                  </div>
+            {terminalLines.map((lineObj, idx) => (
+              <div
+                key={idx}
+                style={{
+                  color: lineObj.color || '#0f0',
+                  fontSize: lineObj.small ? '0.7rem' : '0.8rem',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {renderHighlightedLine(
+                  lineObj.text || '',
+                  { color: lineObj.color || '#0f0' }
                 )}
-
-                {item.stderr && (
-                  <div
-                    style={{
-                      whiteSpace: 'pre-wrap',
-                      color: '#f00',
-                    }}
-                  >
-                    {item.stderr}
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    color: '#888',
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  exit code: {item.returncode}
-                </div>
               </div>
             ))}
           </pre>
         </div>
 
         {/* INPUT BAR */}
-        <div ref={inputBarRef} className="exec-input-bar">
-          <span className="exec-prompt">$</span>
+        <div ref={inputBarRef} className="exec-input-bar" style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.5rem',
+          padding: '0.5rem 0.75rem',
+          borderTop: '1px solid #444',
+          backgroundColor: '#1a1a1a',
+          color: '#eee',
+          flexShrink: 0,
+        }}>
+          <span
+            className="exec-prompt"
+            style={{
+              color: '#0ff',
+              fontFamily: 'monospace',
+              lineHeight: '1.4rem',
+            }}
+          >
+            $
+          </span>
           <textarea
-            ref={inputRef} // autofocus target
+            ref={inputRef}
             className="exec-input"
             value={currentCmd}
             onChange={(e) => setCurrentCmd(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a command and press Enter… (use 'clear' to clear output)"
+            style={{
+              flexGrow: 1,
+              minHeight: '2.2rem',
+              maxHeight: '6rem',
+              resize: 'none',
+              backgroundColor: '#000',
+              color: '#0f0',
+              fontFamily: 'monospace',
+              fontSize: '0.8rem',
+              lineHeight: '1.2rem',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              padding: '0.5rem',
+              boxSizing: 'border-box',
+              width: '100%',
+            }}
           />
           <button
             className="exec-run-button"
             onClick={executeCommand}
             title="Run command"
+            style={{
+              background: 'none',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              padding: '0.5rem 0.75rem',
+              color: '#eee',
+              fontSize: '0.8rem',
+              lineHeight: 1.2,
+              backgroundColor: '#222',
+            }}
           >
             Run
           </button>
         </div>
 
-        {/* resize handle */}
+        {/* handle resize abajo a la derecha */}
         <div
           className="resize-handle"
           onMouseDown={onMouseDownResize}
