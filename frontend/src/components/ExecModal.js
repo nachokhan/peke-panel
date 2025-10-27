@@ -60,7 +60,7 @@ const ExecModal = ({ containerId, onClose }) => {
   const [position, setPosition] = useState(getInitialPosition);
   const [size, setSize] = useState(getInitialSize);
 
-  // we'll keep min size in state, but we won't let it grow with typing
+  // min size (we keep a fixed minWidth to avoid modal growing while typing)
   const [minSize, setMinSize] = useState({ minWidth: 400, minHeight: 200 });
 
   const draggingRef = useRef(false);
@@ -77,6 +77,16 @@ const ExecModal = ({ containerId, onClose }) => {
   const headerRef = useRef(null);
   const inputBarRef = useRef(null);
   const outputRef = useRef(null);
+
+  // textarea ref for autofocus
+  const inputRef = useRef(null);
+
+  // autofocus textarea when modal mounts
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
 
   // auto-scroll output when history updates
   useEffect(() => {
@@ -225,19 +235,17 @@ const ExecModal = ({ containerId, onClose }) => {
   }, [minSize, position, size]);
 
   // compute minHeight only (stable minWidth = 400)
-  // ya no usamos el ancho dinámico de la barra de input para empujar minWidth
   useLayoutEffect(() => {
     if (!headerRef.current || !inputBarRef.current) return;
 
     const headerRect = headerRef.current.getBoundingClientRect();
     const inputRect = inputBarRef.current.getBoundingClientRect();
 
-    // Queremos altura mínima suficiente:
-    // header + input bar + ~120px para output visible
+    // altura mínima: header + input bar + ~120px para output visible
     const calcMinHeight = headerRect.height + inputRect.height + 120;
 
     setMinSize((prev) => ({
-      minWidth: 400, // fijo, NO crece cuando tipeas
+      minWidth: 400, // fijo, evita que el modal crezca con el texto
       minHeight: Math.max(200, Math.ceil(calcMinHeight)),
     }));
   }, [currentCmd]);
@@ -316,9 +324,8 @@ const ExecModal = ({ containerId, onClose }) => {
 
             {history.map((item, idx) => (
               <div key={idx} style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#0ff' }}>
-                  $ {item.command}
-                </div>
+                <div style={{ color: '#0ff' }}>$ {item.command}</div>
+
                 {item.stdout && (
                   <div
                     style={{
@@ -329,6 +336,7 @@ const ExecModal = ({ containerId, onClose }) => {
                     {item.stdout}
                   </div>
                 )}
+
                 {item.stderr && (
                   <div
                     style={{
@@ -339,6 +347,7 @@ const ExecModal = ({ containerId, onClose }) => {
                     {item.stderr}
                   </div>
                 )}
+
                 <div
                   style={{
                     color: '#888',
@@ -356,6 +365,7 @@ const ExecModal = ({ containerId, onClose }) => {
         <div ref={inputBarRef} className="exec-input-bar">
           <span className="exec-prompt">$</span>
           <textarea
+            ref={inputRef} // << autofocus target
             className="exec-input"
             value={currentCmd}
             onChange={(e) => setCurrentCmd(e.target.value)}
