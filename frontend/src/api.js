@@ -39,3 +39,10 @@ export const stopContainer = (containerId) => {
 export const getContainerLogs = (containerId, lines) => {
   return apiClient.get(`/api/containers/${containerId}/logs?lines=${lines}`);
 };
+
+// Run a shell command inside the container
+export const runContainerCommand = (containerId, command) => {
+  return apiClient.post(`/api/containers/${containerId}/exec`, {
+    command,
+  });
+};

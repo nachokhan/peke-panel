@@ -1,13 +1,29 @@
 // src/components/Dashboard.js
 import React, { useState, useEffect } from 'react';
-import { getStatus, startContainer, stopContainer, restartContainer } from '../api';
+import {
+  getStatus,
+  startContainer,
+  stopContainer,
+  restartContainer,
+} from '../api';
 import LogsModal from './LogsModal';
-import { FaPlay, FaStop, FaSync, FaFileAlt, FaCog, FaSun, FaMoon } from 'react-icons/fa';
+import ExecModal from './ExecModal';
+import {
+  FaPlay,
+  FaStop,
+  FaSync,
+  FaFileAlt,
+  FaCog,
+  FaSun,
+  FaMoon,
+  FaTerminal,
+} from 'react-icons/fa';
 
 const Dashboard = ({ setToken }) => {
   const [services, setServices] = useState([]);
   const [error, setError] = useState('');
   const [selectedContainer, setSelectedContainer] = useState(null);
+  const [terminalContainer, setTerminalContainer] = useState(null);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [loading, setLoading] = useState(true);
@@ -15,9 +31,7 @@ const Dashboard = ({ setToken }) => {
   const fetchStatus = React.useCallback(async () => {
     try {
       const response = await getStatus();
-      // Assuming the API now returns ram_usage, cpu_usage, net_usage
-      // If not, we'll add dummy data for now
-      const updatedServices = response.data.map(service => ({
+      const updatedServices = response.data.map((service) => ({
         ...service,
         ram_usage: service.ram_usage || 'N/A',
         cpu_usage: service.cpu_usage || 'N/A',
@@ -32,16 +46,16 @@ const Dashboard = ({ setToken }) => {
   }, []);
 
   useEffect(() => {
-    if (selectedContainer) {
-      // If a container is selected (logs modal is open), stop fetching status
-      return; // No interval is set
+    // If either logs modal OR terminal modal is open, pause polling.
+    if (selectedContainer || terminalContainer) {
+      return;
     }
 
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000); // Refresh every 5 seconds
 
     return () => clearInterval(interval);
-  }, [fetchStatus, selectedContainer]);
+  }, [fetchStatus, selectedContainer, terminalContainer]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -71,7 +85,7 @@ const Dashboard = ({ setToken }) => {
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
-    setShowSettingsDropdown(false); // Close dropdown after toggling theme
+    setShowSettingsDropdown(false);
   };
 
   useEffect(() => {
@@ -85,11 +99,17 @@ const Dashboard = ({ setToken }) => {
         <h1>2Brains Health Monitor</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ position: 'relative' }}>
-            <button className="settings-button" onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}>
+            <button
+              className="settings-button"
+              onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
+            >
               <FaCog />
             </button>
             {showSettingsDropdown && (
-              <div className="settings-dropdown" style={{ right: 0, left: 'auto' }}>
+              <div
+                className="settings-dropdown"
+                style={{ right: 0, left: 'auto' }}
+              >
                 <button onClick={toggleTheme} className="theme-toggle-button">
                   {theme === 'dark' ? <FaSun /> : <FaMoon />}
                   <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
@@ -100,7 +120,9 @@ const Dashboard = ({ setToken }) => {
           <button onClick={handleLogout}>Logout</button>
         </div>
       </nav>
+
       {error && <p className="error">{error}</p>}
+
       {loading ? (
         <div className="loading-container">
           <FaSync className="spin" />
@@ -109,28 +131,83 @@ const Dashboard = ({ setToken }) => {
       ) : (
         <div className="service-list">
           {services.map((service) => (
-            <div key={service.id} className={`service-card status-${service.status}`}>
+            <div
+              key={service.id}
+              className={`service-card status-${service.status}`}
+            >
               <h3 className="service-card-title">{service.name}</h3>
-              <p><strong>Status:</strong> {service.status === 'running' ? '✅ Running' : service.status === 'stopped' ? '❌ Stopped' : '⚠️ Unhealthy'}</p>
-              <p>⏱️ <strong>Uptime:</strong> {service.uptime}</p>
-              <p>🔌 <strong>Port:</strong> {service.port}</p>
-              <p>💾 <strong>RAM:</strong> {service.ram_usage}</p>
-              <p>🧠 <strong>CPU:</strong> {service.cpu_usage}</p>
-              <p>🌐 <strong>NET:</strong> {service.net_usage}</p>
+              <p>
+                <strong>Status:</strong>{' '}
+                {service.status === 'running'
+                  ? '✅ Running'
+                  : service.status === 'stopped'
+                  ? '❌ Stopped'
+                  : '⚠️ Unhealthy'}
+              </p>
+              <p>
+                ⏱️ <strong>Uptime:</strong> {service.uptime}
+              </p>
+              <p>
+                🔌 <strong>Port:</strong> {service.port}
+              </p>
+              <p>
+                💾 <strong>RAM:</strong> {service.ram_usage}
+              </p>
+              <p>
+                🧠 <strong>CPU:</strong> {service.cpu_usage}
+              </p>
+              <p>
+                🌐 <strong>NET:</strong> {service.net_usage}
+              </p>
+
               <div className="service-actions">
-                <button onClick={() => handleAction('start', service.id)}><FaPlay /></button>
-                <button onClick={() => handleAction('stop', service.id)}><FaStop /></button>
-                <button onClick={() => handleAction('restart', service.id)}><FaSync /></button>
-                <button onClick={() => setSelectedContainer(service.id)}><FaFileAlt /></button>
+                <button
+                  onClick={() => handleAction('start', service.id)}
+                  title="Start container"
+                >
+                  <FaPlay />
+                </button>
+                <button
+                  onClick={() => handleAction('stop', service.id)}
+                  title="Stop container"
+                >
+                  <FaStop />
+                </button>
+                <button
+                  onClick={() => handleAction('restart', service.id)}
+                  title="Restart container"
+                >
+                  <FaSync />
+                </button>
+                <button
+                  onClick={() => setSelectedContainer(service.id)}
+                  title="View logs"
+                >
+                  <FaFileAlt />
+                </button>
+                <button
+                  onClick={() => setTerminalContainer(service.id)}
+                  title="Open terminal"
+                >
+                  <FaTerminal />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
       {selectedContainer && (
         <LogsModal
           containerId={selectedContainer}
           onClose={() => setSelectedContainer(null)}
+        />
+      )}
+
+      {terminalContainer && (
+        <ExecModal
+          containerId={terminalContainer}
+          onClose={() => setTerminalContainer(null)}
         />
       )}
     </div>
