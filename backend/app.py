@@ -1,6 +1,7 @@
 import json
 import subprocess
 from datetime import timedelta
+
 from fastapi import (
     Depends,
     FastAPI,
@@ -20,16 +21,25 @@ from auth import (
     ADMIN_PASSWORD,
 )
 
+# IMPORTANT: we import the snapshot loop
+from services.snapshot import start_snapshot_loop
+
 # --- FastAPI App Initialization ---
 app = FastAPI(title="Docker Monitor")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this to the frontend URL
+    allow_origins=["*"],  # in production limit to the frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# startup event: start the background refresh loop
+@app.on_event("startup")
+async def _on_startup():
+    # start the loop that keeps the stack snapshot in memory
+    await start_snapshot_loop()
 
 # Register /api/v2 routes
 app.include_router(v2_router)
@@ -38,8 +48,7 @@ app.include_router(v2_router)
 # --- Docker Service Logic (v1 legacy) ---
 def get_docker_statuses():
     """
-    v1 logic (unchanged). Uses subprocess+docker CLI.
-    The frontend actual (Dashboard.js) still calls /api/status which calls this.
+    v1 logic legacy (dashboard viejo). Usa docker CLI via subprocess.
     """
     try:
         ps_cmd = [
@@ -119,7 +128,7 @@ def get_docker_statuses():
         ]
 
 
-# --- API Endpoints v1 (unchanged) ---
+# --- API Endpoints v1 (legacy) ---
 
 @app.post("/api/containers/{container_id}/start")
 async def start_container(container_id: str, user: str = Depends(get_current_user)):
@@ -171,7 +180,6 @@ async def exec_container_command(
     """
     Run a shell command inside a container using `docker exec`.
     Expects JSON body: { "command": "<string>" }
-    Returns stdout, stderr, and return code.
     """
     command = payload.get("command")
     if not command:
@@ -215,7 +223,7 @@ async def login_for_access_token(username: str = Form(...), password: str = Form
 @app.get("/api/status")
 async def get_status(user: str = Depends(get_current_user)):
     """
-    Provides the Docker services status as JSON, protected by authentication.
+    Legacy /api/status para Dashboard.js viejo.
     """
     return get_docker_statuses()
 
@@ -223,6 +231,6 @@ async def get_status(user: str = Depends(get_current_user)):
 @app.get("/healthz")
 def health_check():
     """
-    Simple health check endpoint for external monitoring.
+    Health check para monitoreo externo.
     """
     return {"status": "ok"}

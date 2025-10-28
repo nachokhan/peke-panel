@@ -219,8 +219,6 @@ def _get_stats_for_container(container) -> Dict[str, str]:
     except Exception:
         net_io_str = "N/A"
 
-    print("Stats for container: ", container.id, "->", cpu_perc, mem_usage_str, net_io_str)
-
     return {
         "cpu": cpu_perc,
         "mem": mem_usage_str,

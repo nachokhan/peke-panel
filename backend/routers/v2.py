@@ -3,11 +3,13 @@ from models.v2 import (
     StackListResponse,
     StackDetailResponse,
 )
-from services.docker_service_v3 import (
-    get_stack_summaries_cached,
-    get_stack_detail_cached,
-)
 from auth import get_current_user
+
+# Read from the in-memory snapshot
+from services.snapshot import (
+    get_summary_snapshot,
+    get_detail_snapshot,
+)
 
 router = APIRouter(
     prefix="/api/v2",
@@ -19,25 +21,23 @@ router = APIRouter(
 @router.get("/stacks", response_model=StackListResponse)
 async def list_stacks(user: str = Depends(get_current_user)):
     """
-    Return all stacks (groups of containers) with aggregate metrics.
-    This uses a lightweight collector that:
-      - does NOT call container.stats() per container
-      - reuses cached results for ~2 seconds
+    Returns all stacks with lightweight aggregated info.
+    Does NOT block by calling the Docker daemon at this moment.
+    Reads the pre-calculated snapshot refreshed in the background every ~2s.
     """
-    stacks = get_stack_summaries_cached()
+    stacks = get_summary_snapshot()
     return {"stacks": stacks}
 
 
 @router.get("/stacks/{stack_id}", response_model=StackDetailResponse)
 async def get_stack(stack_id: str, user: str = Depends(get_current_user)):
     """
-    Return detailed info for a single stack, including per-container data.
-    This path:
-      - ONLY inspects containers in the requested stack
-      - calls container.stats() for those containers (not the whole host)
-      - reuses cached results for ~2 seconds
+    Returns detailed info of a stack.
+    Uses internal memory cache (get_detail_snapshot).
+    If not cached yet, it calculates it once using the optimized version
+    (stats in parallel only for running containers) and then saves it.
     """
-    stack_detail = get_stack_detail_cached(stack_id)
+    stack_detail = get_detail_snapshot(stack_id)
     if stack_detail is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
