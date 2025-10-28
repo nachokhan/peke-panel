@@ -1,19 +1,20 @@
+// src/components/graph/GraphView.js
 import React from "react";
 
 const cardStyle = {
-  background: "#111827",                 // mismo look que las cards del sidebar
+  background: "#111827",
   border: "1px solid var(--border)",
   borderRadius: "8px",
   boxShadow: "0 24px 64px rgba(0,0,0,.6)",
-  padding: "10px",
+  padding: "12px",
   color: "var(--txt)",
   fontSize: "11px",
   lineHeight: "1.4",
   display: "flex",
   flexDirection: "column",
-  width: "180px",                        // << ancho REAL en píxeles
-  minWidth: "180px",
-  maxWidth: "180px",
+  width: "200px",
+  minWidth: "200px",
+  maxWidth: "200px",
 };
 
 const miniBtnStyle = {
@@ -82,7 +83,7 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onRestart }) {
           alignItems: "flex-start",
           justifyContent: "space-between",
           gap: "8px",
-          marginBottom: "4px",
+          marginBottom: "6px",
         }}
       >
         <div
@@ -90,9 +91,9 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onRestart }) {
             fontWeight: 600,
             color: "var(--txt)",
             wordBreak: "break-word",
-            fontSize: "12px",
+            fontSize: "13px",
             lineHeight: "1.2",
-            maxWidth: "120px",
+            maxWidth: "130px",
             whiteSpace: "nowrap",
             textOverflow: "ellipsis",
             overflow: "hidden",
@@ -109,13 +110,13 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onRestart }) {
       <div
         style={{
           color: "var(--txt-dim)",
-          fontSize: "10px",
+          fontSize: "11px",
           lineHeight: "1.4",
           display: "grid",
           gridTemplateColumns: "auto 1fr",
           rowGap: "2px",
           columnGap: "6px",
-          marginBottom: "6px",
+          marginBottom: "8px",
           flexShrink: 0,
         }}
       >
@@ -132,10 +133,10 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onRestart }) {
         <div>{ct.net}</div>
       </div>
 
-      {/* puertos truncados en una sola línea */}
+      {/* puertos truncados */}
       <div
         style={{
-          fontSize: "10px",
+          fontSize: "11px",
           color: "var(--txt)",
           lineHeight: "1.3",
           whiteSpace: "nowrap",
@@ -184,7 +185,6 @@ export default function GraphView({
   onOpenShell,
   onRestart,
 }) {
-  // si todavía no cargó el detalle
   if (!stackDetail) {
     return (
       <section
@@ -224,7 +224,7 @@ export default function GraphView({
         overflowY: "auto",
       }}
     >
-      {/* grid de cards chiquitas */}
+      {/* grid de cards */}
       <div
         style={{
           display: "flex",
