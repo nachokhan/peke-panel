@@ -1,3 +1,4 @@
+// frontend_v2/src/components/ExecModal.js
 import React, {
   useState,
   useEffect,
@@ -27,6 +28,72 @@ export default function ExecModal({ containerId, onClose }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [matches, setMatches] = useState([]); // [{ lineIndex, start, end }]
   const [currentMatch, setCurrentMatch] = useState(0);
+
+  // ===== tamaño de fuente dinámico del área de salida =====
+  const [fontPx, setFontPx] = useState(() => {
+    try {
+      const raw = localStorage.getItem("execModalFontPx");
+      const n = parseInt(raw, 10);
+      if (!isNaN(n) && n >= 8 && n <= 24) {
+        return n;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 12; // default px
+  });
+
+  const fontMetrics = useMemo(() => {
+    const normal = fontPx;
+    const small = Math.round(fontPx * 0.85);
+    const lh = Math.round(fontPx * 1.3);
+    return { normal, small, lh };
+  }, [fontPx]);
+
+  // persistir preferencia de tamaño de fuente
+  useEffect(() => {
+    try {
+      localStorage.setItem("execModalFontPx", String(fontPx));
+    } catch {
+      /* ignore */
+    }
+  }, [fontPx]);
+
+  // atajos Ctrl/Cmd + / - / 0 para zoom del área de salida
+  useEffect(() => {
+    function onKey(e) {
+      const ctrlLike = e.ctrlKey || e.metaKey;
+      if (!ctrlLike) return;
+
+      const key = e.key;
+      const isPlus = key === "+" || key === "=";
+      const isMinus = key === "-";
+      const isReset = key === "0";
+
+      if (isPlus || isMinus || isReset) {
+        e.preventDefault(); // evita zoom global del browser
+      }
+
+      if (isPlus) {
+        setFontPx((prev) => {
+          const next = prev + 1;
+          return next > 24 ? 24 : next;
+        });
+      } else if (isMinus) {
+        setFontPx((prev) => {
+          const next = prev - 1;
+          return next < 8 ? 8 : next;
+        });
+      } else if (isReset) {
+        setFontPx(12);
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   // ===== posición / tamaño persistentes =====
   function getInitialPosition() {
@@ -418,7 +485,7 @@ export default function ExecModal({ containerId, onClose }) {
             })
           );
         } catch {
-          /* ignore */
+          /* ignore */ 
         }
       }
     };
@@ -747,8 +814,8 @@ export default function ExecModal({ containerId, onClose }) {
             borderTop: "1px solid #1b1f2c",
             borderBottom: "1px solid #1b1f2c",
             fontFamily: "monospace",
-            fontSize: "12px",
-            lineHeight: "1.3rem",
+            fontSize: fontMetrics.normal + "px",
+            lineHeight: fontMetrics.lh + "px",
             margin: 0,
           }}
         >
@@ -757,9 +824,12 @@ export default function ExecModal({ containerId, onClose }) {
               key={idx}
               style={{
                 color: lineObj.color || "#0f0",
-                fontSize: lineObj.small ? "0.7rem" : "0.8rem",
+                fontSize:
+                  (lineObj.small
+                    ? fontMetrics.small
+                    : fontMetrics.normal) + "px",
                 whiteSpace: "pre-wrap",
-                lineHeight: "1.3rem",
+                lineHeight: fontMetrics.lh + "px",
                 fontFamily: "monospace",
               }}
             >
@@ -852,7 +922,7 @@ export default function ExecModal({ containerId, onClose }) {
           </button>
         </div>
 
-        {/* HANDLE DE RESIZE - ahora con zIndex más alto que la barra de input */}
+        {/* HANDLE DE RESIZE */}
         <div
           onMouseDown={startResize}
           style={{
@@ -870,7 +940,7 @@ export default function ExecModal({ containerId, onClose }) {
             backgroundColor: "rgba(255,255,255,0.4)",
             boxSizing: "border-box",
             pointerEvents: "auto",
-            zIndex: 2, // clave: encima de la barra con zIndex:1
+            zIndex: 2,
           }}
         />
       </div>
