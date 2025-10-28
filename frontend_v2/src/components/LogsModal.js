@@ -1,3 +1,4 @@
+// frontend_v2/src/LogsModal.js
 import React, {
   useState,
   useEffect,
@@ -8,21 +9,26 @@ import React, {
 import { getContainerLogs } from "../api";
 import { FaSync, FaCopy, FaDownload, FaSearch } from "react-icons/fa";
 
+// escapador para la regex del buscador
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export default function LogsModal({ containerId, onClose }) {
+  // ===== state principal =====
   const [logs, setLogs] = useState("");
   const [lines, setLines] = useState(100);
   const [error, setError] = useState("");
-  const [isFlashing, setIsFlashing] = useState(false);
 
+  // solo se usa para el efecto de "flash" visual cuando copiás
+  const [flashCopy, setFlashCopy] = useState(false);
+
+  // búsqueda
   const [searchTerm, setSearchTerm] = useState("");
   const [matches, setMatches] = useState([]);
   const [currentMatch, setCurrentMatch] = useState(0);
 
-  // posición/tamaño persistentes
+  // posición / tamaño persistente del modal
   function getInitialPosition() {
     try {
       const raw = localStorage.getItem("logsModalPos");
@@ -32,7 +38,9 @@ export default function LogsModal({ containerId, onClose }) {
           return { top, left };
         }
       }
-    } catch {/* ignore */}
+    } catch {
+      /* ignore */
+    }
     return { top: 80, left: 80 };
   }
 
@@ -45,23 +53,30 @@ export default function LogsModal({ containerId, onClose }) {
           return { width, height };
         }
       }
-    } catch {/* ignore */}
+    } catch {
+      /* ignore */
+    }
     return { width: 900, height: 480 };
   }
 
   const [position, setPosition] = useState(getInitialPosition);
   const [size, setSize] = useState(getInitialSize);
+
+  // min size dinámica (height se recalcula según header/toolbar; width fijo mínimo)
   const [minSize, setMinSize] = useState({
     minWidth: 600,
     minHeight: 260,
   });
 
-  // refs DOM
+  // ===== refs DOM =====
   const headerRef = useRef(null);
   const toolbarRef = useRef(null);
   const logsContainerRef = useRef(null);
 
-  // drag / resize refs
+  // marca: "después del refresh hay que dejar el scroll abajo del todo"
+  const stickToBottomRef = useRef(false);
+
+  // ===== refs drag / resize =====
   const draggingRef = useRef(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
 
@@ -73,70 +88,80 @@ export default function LogsModal({ containerId, onClose }) {
     startH: 0,
   });
 
-  // ===== API =====
+  // ===== API: traer logs =====
   const fetchLogs = useCallback(async () => {
     try {
       setError("");
       const response = await getContainerLogs(containerId, lines);
-      setLogs(response.data.logs || "");
-      setIsFlashing(true);
-      setTimeout(() => setIsFlashing(false), 250);
+      const newText = response.data.logs || "";
+
+      // marcamos que, una vez que se rendericen estos logs,
+      // debemos scrollear al final
+      stickToBottomRef.current = true;
+
+      setLogs(newText);
+      // NO hacemos scroll acá.
+      // NO disparamos flash acá.
     } catch (err) {
       setError("Failed to fetch logs");
     }
   }, [containerId, lines]);
 
+  // cargar logs al montar y cuando cambian containerId / lines
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
-  // scroll a bottom cuando cambian logs
-  useEffect(() => {
-    if (logsContainerRef.current) {
-      logsContainerRef.current.scrollTop =
-        logsContainerRef.current.scrollHeight;
-    }
-  }, [logs]);
-
   // cerrar con ESC
   useEffect(() => {
     const onEsc = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+      }
     };
     document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
   }, [onClose]);
 
-  // copiar / exportar
+  // copiar logs al clipboard
   const handleCopyLogs = async () => {
     try {
       await navigator.clipboard.writeText(logs);
-      setIsFlashing(true);
-      setTimeout(() => setIsFlashing(false), 250);
-    } catch {}
+      setFlashCopy(true);
+      setTimeout(() => {
+        setFlashCopy(false);
+      }, 250);
+    } catch {
+      /* ignore */
+    }
   };
 
+  // exportar logs a .txt
   const handleExportLogs = () => {
     const blob = new Blob([logs], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
+
     const a = document.createElement("a");
     a.href = url;
     a.download = `logs-${containerId}-${new Date().toISOString()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+
     URL.revokeObjectURL(url);
   };
 
-  // ===== search / matches =====
+  // ===== búsqueda de matches =====
   useEffect(() => {
     if (!searchTerm) {
       setMatches([]);
       setCurrentMatch(0);
       return;
     }
+
     const needle = escapeRegex(searchTerm);
     const re = new RegExp(needle, "gi");
+
     const found = [];
     logs.split("\n").forEach((line, lineIndex) => {
       let m;
@@ -148,15 +173,16 @@ export default function LogsModal({ containerId, onClose }) {
         });
       }
     });
+
     setMatches(found);
     setCurrentMatch(0);
   }, [searchTerm, logs]);
 
-  // auto-scroll al match activo
+  // cuando cambia currentMatch, si hay búsqueda activa, centrar el match visible
   useEffect(() => {
     if (matches.length === 0 || !logsContainerRef.current) return;
-    const el =
-      logsContainerRef.current.querySelector(".current-match");
+
+    const el = logsContainerRef.current.querySelector(".current-match");
     if (el) {
       el.scrollIntoView({
         behavior: "smooth",
@@ -165,6 +191,7 @@ export default function LogsModal({ containerId, onClose }) {
     }
   }, [currentMatch, matches]);
 
+  // navega entre coincidencias
   const goToMatch = (dir) => {
     if (matches.length === 0) return;
     if (dir === "next") {
@@ -174,6 +201,7 @@ export default function LogsModal({ containerId, onClose }) {
     }
   };
 
+  // pintar logs con highlight de matches
   const renderHighlightedLogs = () => {
     if (!searchTerm) {
       return logs.split("\n").map((line, i) => (
@@ -186,11 +214,10 @@ export default function LogsModal({ containerId, onClose }) {
 
     const needle = escapeRegex(searchTerm);
     const re = new RegExp(`(${needle})`, "gi");
-
     let globalIdx = 0;
 
     return logs.split("\n").map((line, lineIdx) => {
-      const parts = line.split(re); // mantiene capturas
+      const parts = line.split(re); // incluye capturas
       return (
         <span key={lineIdx}>
           {parts.map((chunk, j) => {
@@ -216,7 +243,7 @@ export default function LogsModal({ containerId, onClose }) {
     });
   };
 
-  // ===== drag / resize =====
+  // ===== drag start =====
   const startDrag = (e) => {
     if (e.target.closest(".logsmodal-header")) {
       draggingRef.current = true;
@@ -228,6 +255,7 @@ export default function LogsModal({ containerId, onClose }) {
     }
   };
 
+  // ===== resize start =====
   const startResize = (e) => {
     resizingRef.current = true;
     resizeStartRef.current = {
@@ -240,6 +268,7 @@ export default function LogsModal({ containerId, onClose }) {
     e.stopPropagation();
   };
 
+  // ===== mousemove / mouseup global para drag+resize =====
   useEffect(() => {
     const onMove = (e) => {
       if (draggingRef.current) {
@@ -255,19 +284,25 @@ export default function LogsModal({ containerId, onClose }) {
 
         let newW = resizeStartRef.current.startW + dx;
         let newH = resizeStartRef.current.startH + dy;
+
         if (newW < minSize.minWidth) newW = minSize.minWidth;
         if (newH < minSize.minHeight) newH = minSize.minHeight;
 
-        setSize({ width: newW, height: newH });
+        setSize({
+          width: newW,
+          height: newH,
+        });
       }
     };
 
     const onUp = () => {
       const moved = draggingRef.current || resizingRef.current;
+
       draggingRef.current = false;
       resizingRef.current = false;
 
       if (moved) {
+        // persistir posición/tamaño
         try {
           localStorage.setItem(
             "logsModalPos",
@@ -276,7 +311,9 @@ export default function LogsModal({ containerId, onClose }) {
               left: position.left,
             })
           );
-        } catch {}
+        } catch {
+          /* ignore */
+        }
         try {
           localStorage.setItem(
             "logsModalSize",
@@ -285,33 +322,49 @@ export default function LogsModal({ containerId, onClose }) {
               height: size.height,
             })
           );
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
     };
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
   }, [minSize, position, size]);
 
-  // recalcular minHeight en base a header+toolbar
+  // ===== recalcular minHeight segun header + toolbar =====
   useLayoutEffect(() => {
     if (!headerRef.current || !toolbarRef.current) return;
     const h = headerRef.current.getBoundingClientRect().height;
     const t = toolbarRef.current.getBoundingClientRect().height;
-    const calc = h + t + 180;
+    const calc = h + t + 180; // body mínimo
     setMinSize((old) => ({
       ...old,
       minHeight: calc < 260 ? 260 : Math.ceil(calc),
     }));
   }, [lines, searchTerm]);
 
-  // opciones "Lines:"
+  // ===== pegar scroll al fondo DESPUÉS de cada refresh =====
+  // corre en layoutEffect para que sea el último paso antes de pintar
+  useLayoutEffect(() => {
+    if (!logsContainerRef.current) return;
+
+    if (stickToBottomRef.current) {
+      const el = logsContainerRef.current;
+      el.scrollTop = el.scrollHeight;
+      stickToBottomRef.current = false;
+    }
+  }, [logs, searchTerm, matches]);
+
+  // ===== opciones de cantidad de líneas =====
   const lineOptions = [100, 500, 1000, 5000];
 
+  // ===== render =====
   return (
     <div className="modal-overlay">
       <div
@@ -330,12 +383,10 @@ export default function LogsModal({ containerId, onClose }) {
         }}
         onMouseDown={startDrag}
       >
-        {/* HEADER */}
+        {/* HEADER (draggable) */}
         <div ref={headerRef} className="logsmodal-header">
           <div className="logsmodal-header-left">
-            <span className="logsmodal-title">
-              Logs for {containerId}
-            </span>
+            <span className="logsmodal-title">Logs for {containerId}</span>
             {error && <span className="logsmodal-error">{error}</span>}
           </div>
           <button
@@ -355,9 +406,7 @@ export default function LogsModal({ containerId, onClose }) {
             {lineOptions.map((opt) => (
               <button
                 key={opt}
-                className={
-                  "lines-opt" + (lines === opt ? " active" : "")
-                }
+                className={"lines-opt" + (lines === opt ? " active" : "")}
                 onClick={() => setLines(opt)}
               >
                 {opt}
@@ -424,12 +473,10 @@ export default function LogsModal({ containerId, onClose }) {
           </div>
         </div>
 
-        {/* BODY */}
+        {/* BODY (terminal-like output) */}
         <pre
           ref={logsContainerRef}
-          className={
-            "logsmodal-body" + (isFlashing ? " flash" : "")
-          }
+          className={"logsmodal-body" + (flashCopy ? " flash" : "")}
         >
           {renderHighlightedLogs()}
         </pre>
