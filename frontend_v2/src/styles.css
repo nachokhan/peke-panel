@@ -16,3 +16,243 @@
 html,body,#root{height:100%;}
 body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Inter",Roboto,"Segoe UI",sans-serif;}
 button{cursor:pointer}
+
+/* ===== OVERLAY (oscurecer fondo) ===== */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.5); /* ya no transparente total */
+  pointer-events:none;       /* deja pasar eventos sólo al modal flotante */
+  z-index:1000;
+}
+
+/* ===== MODAL SHELL GENERAL ===== */
+.logsmodal-shell{
+  border:1px solid #555;
+  border-radius:4px;
+  background:#2f2f2f;                 /* gris oscuro sólido detrás del header */
+  box-shadow:0 24px 64px rgba(0,0,0,.8);
+  overflow:hidden;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Inter",Roboto,"Segoe UI",sans-serif;
+  color:#eee;
+  pointer-events:auto;                /* este sí recibe clics */
+}
+
+/* ===== HEADER (barra superior) ===== */
+.logsmodal-header{
+  background:#2f2f2f;
+  border-bottom:1px solid #555;
+  color:#eee;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:8px 12px;
+  cursor:move;
+  user-select:none;
+  font-size:14px;
+  line-height:1.2;
+  font-weight:500;
+}
+
+.logsmodal-header-left{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.75rem;
+}
+
+.logsmodal-title{
+  color:#eee;
+}
+.logsmodal-error{
+  color:#ff7b7b;
+  font-size:12px;
+  line-height:1.2;
+  font-weight:400;
+}
+
+.logsmodal-closebtn{
+  background:none;
+  border:none;
+  color:#eee;
+  font-size:16px;
+  line-height:1;
+  cursor:pointer;
+  padding:4px 6px;
+  border-radius:4px;
+}
+.logsmodal-closebtn:hover{
+  background:rgba(255,255,255,0.08);
+}
+
+/* ===== TOOLBAR (segunda fila gris medio) ===== */
+.logsmodal-toolbar{
+  background:#4a4a4a;
+  border-bottom:1px solid #555;
+  color:#fff;
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:12px;
+  padding:8px 12px;
+  font-size:13px;
+  line-height:1.2;
+}
+
+.toolbar-section{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:8px;
+  color:#fff;
+}
+
+/* Lines: */
+.lines-section{ color:#fff; }
+.lines-label{
+  font-size:13px;
+  color:#fff;
+}
+.lines-opt{
+  background:#2f2f2f;
+  border:1px solid #777;
+  border-radius:3px;
+  cursor:pointer;
+  padding:4px 6px;
+  font-size:13px;
+  line-height:1.2;
+  color:#eee;
+}
+.lines-opt.active{
+  color:#4da3ff;
+  font-weight:600;
+  background:rgba(255,255,255,0.08);
+  outline:1px solid rgba(255,255,255,0.2);
+}
+.lines-opt:hover{
+  background:#5a5a5a;
+  color:#fff;
+}
+
+/* Search block */
+.search-section{
+  background:transparent;
+  flex-shrink:1;
+  min-width:0;
+}
+.search-icon{
+  font-size:12px;
+  color:#fff;
+}
+.search-input{
+  background:#2f2f2f;
+  border:1px solid #777;
+  border-radius:3px;
+  color:#fff;
+  font-size:12px;
+  line-height:1.2;
+  padding:4px 6px;
+  min-width:100px;
+  max-width:140px;
+  flex:0 0 auto;
+}
+.nav-btn{
+  background:#2f2f2f;
+  border:1px solid #4da3ff;
+  color:#fff;
+  border-radius:3px;
+  font-size:12px;
+  line-height:1.2;
+  padding:4px 6px;
+  cursor:pointer;
+}
+.nav-btn:hover{
+  background:#4da3ff;
+  color:#000;
+}
+.match-count{
+  font-size:12px;
+  line-height:1.2;
+  color:#fff;
+  white-space:nowrap;
+}
+
+/* Actions (iconos derecha) */
+.toolbar-actions{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.icon-btn{
+  background:#2f2f2f;
+  border:1px solid #777;
+  color:#fff;
+  cursor:pointer;
+  padding:4px 6px;
+  line-height:1;
+  border-radius:4px;
+  font-size:14px; /* tamaño icono */
+}
+.icon-btn:hover{
+  background:#5a5a5a;
+}
+
+/* ===== BODY (terminal negra con texto verde) ===== */
+.logsmodal-body{
+  flex:1 1 auto;
+  background:#000;
+  color:#00ff00;
+  font-family:monospace;
+  font-size:13px;
+  line-height:1.4;
+  padding:12px;
+  margin:0;
+  overflow-y:auto;
+  white-space:pre-wrap;
+  word-wrap:break-word;
+  border-left:1px solid #555;
+  border-right:1px solid #555;
+  border-bottom:1px solid #555;
+}
+.logsmodal-body.flash{
+  background-color:#1f2f1f;
+}
+
+/* ===== SEARCH HIGHLIGHT COLORES ===== */
+.highlight{
+  background-color:rgba(255,255,0,0.2); /* match normal amarillo translúcido */
+  color:#fff;
+  border-radius:2px;
+  padding:0 2px;
+}
+.current-match{
+  background-color:#fff;    /* match activo blanco */
+  color:#001bcd;            /* texto azul */
+  border-radius:2px;
+  padding:0 2px;
+  font-weight:600;
+}
+
+/* ===== RESIZE HANDLE (esquina bottom-right) ===== */
+.logsmodal-resize-handle{
+  position:absolute;
+  width:14px;
+  height:14px;
+  right:0;
+  bottom:0;
+  cursor:se-resize;
+  background:repeating-linear-gradient(
+    135deg,
+    rgba(0,0,0,0) 0px,
+    rgba(0,0,0,0) 6px,
+    rgba(0,0,0,0.35) 6px,
+    rgba(0,0,0,0.35) 8px
+  );
+  border-top-left-radius:3px;
+  border-left:1px solid rgba(255,255,255,0.2);
+  border-top:1px solid rgba(255,255,255,0.2);
+  background-color:rgba(255,255,255,0.15);
+}
+

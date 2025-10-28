@@ -95,3 +95,440 @@ header .sub{ font-size:12px; color:var(--txt-dim); line-height:1.4; }
 .login-container input{ width:100%; padding:8px; margin-bottom:10px; border:1px solid var(--border); border-radius:6px; background:#111827; color:var(--txt); }
 .login-container button{ width:100%; padding:10px; background:#3b82f6; border:none; border-radius:6px; color:#fff; cursor:pointer; }
 .error{ color:#ff7b7b; text-align:center; margin-bottom:8px; }
+
+/* --- extra toolbar pieces needed by LogsModal --- */
+
+.lines-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--txt);
+}
+
+.lines-selector span {
+  padding-right: 0.5rem;
+  font-weight: normal;
+  color: var(--txt-dim);
+  font-size: 0.8rem;
+}
+
+.lines-options {
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.line-option {
+  background: none;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--txt-dim);
+  background-color: transparent;
+}
+
+.line-option:hover {
+  color: var(--txt);
+  background-color: var(--hover);
+}
+
+.line-option.active {
+  color: var(--ok);
+  font-weight: 600;
+  background-color: rgba(61,220,132,.08);
+  border-left: 1px solid rgba(61,220,132,.3);
+  border-right: 1px solid rgba(61,220,132,.3);
+}
+
+/* compact search box with prev/next + counter */
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 4px;
+  line-height: 1;
+  width: 220px;
+  max-width: 220px;
+  min-width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  font-size: 0.8rem;
+  color: var(--txt);
+}
+
+.search-container svg {
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  color: var(--txt-dim);
+}
+
+.search-container input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  background-color: #000;
+  color: #0f0;
+  font-family: monospace;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.search-container button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  line-height: 1rem;
+  font-size: 0.7rem;
+  color: var(--txt);
+}
+
+.search-container span {
+  font-size: 0.7rem;
+  line-height: 1rem;
+  color: var(--txt-dim);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* actions group on the right side of toolbar */
+.modal-toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.update-logs-button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.4rem 0.5rem;
+  line-height: 1rem;
+  font-size: 0.75rem;
+  color: var(--txt);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.update-logs-button:hover {
+  background: var(--hover);
+  color: var(--txt);
+}
+
+/* flash effect after copy */
+.logs-container.flash {
+  background: #6b6f8b;
+}
+
+/* resize handle bottom-right corner */
+.resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 6px,
+    rgba(0, 0, 0, 0.2) 6px,
+    rgba(0, 0, 0, 0.2) 8px
+  );
+  border-top-left-radius: 4px;
+  border-left: 1px solid rgba(0,0,0,0.2);
+  border-top: 1px solid rgba(0,0,0,0.2);
+  background-color: rgba(255,255,255,0.1);
+  box-sizing: border-box;
+}
+
+/* ===== Floating shell for LogsModal (layout general) ===== */
+
+.logsmodal-shell {
+  /* caja flotante con borde y sombra suave */
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: #2f2f2f; /* fallback, header real va encima */
+  box-shadow: 0 24px 64px rgba(0,0,0,.8);
+  overflow: hidden;
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Inter",Roboto,"Segoe UI",sans-serif;
+  color: #eee;
+}
+
+/* ===== HEADER (barra superior oscura, draggable) ===== */
+
+.logsmodal-header {
+  background: #2f2f2f;
+  border-bottom: 1px solid #555;
+  color: #eee;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+
+  padding: 8px 12px;
+  cursor: move;
+  user-select: none;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.logsmodal-header-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+}
+
+.logsmodal-title {
+  color: #eee;
+}
+
+.logsmodal-error {
+  color: #ff7b7b;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+.logsmodal-closebtn {
+  background: none;
+  border: none;
+  color: #eee;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.logsmodal-closebtn:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+/* ===== TOOLBAR (segunda fila gris más clara) ===== */
+
+.logsmodal-toolbar {
+  background: #4a4a4a;
+  border-bottom: 1px solid #555;
+  color: #fff;
+
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.toolbar-section {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+
+/* --- Lines selector inline (100 500 1000 5000) --- */
+
+.lines-section {
+  color: #fff;
+}
+
+.lines-label {
+  font-size: 13px;
+  color: #fff;
+}
+
+.lines-opt {
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1.2;
+  color: #9da3b5;
+}
+.lines-opt.active {
+  color: #4da3ff;           /* azul clarito para el activo */
+  font-weight: 600;
+  background: rgba(255,255,255,0.08);
+  outline: 1px solid rgba(255,255,255,0.2);
+}
+.lines-opt:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+}
+
+/* --- Search block --- */
+
+.search-section {
+  background: transparent;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.search-icon {
+  font-size: 12px;
+  color: #fff;
+}
+
+.search-input {
+  background: #5a5a5a;
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 2px 6px;
+  min-width: 100px;
+  max-width: 140px;
+  flex: 0 0 auto;
+}
+
+.nav-btn {
+  background: #5a5a5a;
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.nav-btn:hover {
+  background: #6a6a6a;
+}
+
+.match-count {
+  font-size: 12px;
+  line-height: 1.2;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* --- Toolbar actions (icons right aligned) --- */
+
+.toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+  font-size: 14px; /* icon size */
+}
+.icon-btn:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+/* ===== LOGS BODY (área negra con texto verde tipo terminal) ===== */
+
+.logsmodal-body {
+  flex: 1 1 auto;
+  background: #000;
+  color: #00ff00;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.4;
+
+  padding: 12px;
+  margin: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+
+  border-left: 1px solid #555;
+  border-right: 1px solid #555;
+  border-bottom: 1px solid #555;
+}
+
+/* flash al refrescar/copiar */
+.logsmodal-body.flash {
+  background-color: #1f2f1f;
+}
+
+/* ===== HIGHLIGHT SEARCH ===== */
+
+.highlight {
+  background-color: rgba(255,255,0,0.2); /* match normal */
+  color: #fff;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.current-match {
+  background-color: #fff;      /* match activo = blanco */
+  color: #001bcd;              /* azul como en captura */
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
+/* ===== RESIZE HANDLE (esquina abajo derecha) ===== */
+
+.logsmodal-resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(0,0,0,0) 0px,
+    rgba(0,0,0,0) 6px,
+    rgba(0,0,0,0.35) 6px,
+    rgba(0,0,0,0.35) 8px
+  );
+
+  border-top-left-radius: 3px;
+  border-left: 1px solid rgba(255,255,255,0.2);
+  border-top: 1px solid rgba(255,255,255,0.2);
+  background-color: rgba(255,255,255,0.15);
+}
+
+/* ===== overlay permanece transparente y permite clic en ventana ===== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* flotante en sí recibe los eventos */
+.modal-content.floating-modal {
+  pointer-events: auto;
+}
