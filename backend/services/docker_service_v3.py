@@ -1,13 +1,16 @@
 import docker
 import re
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Reuse a single docker client for all calls
+# --------------------------------------------------------------------------------------
+# Global Docker client + cache config
+# --------------------------------------------------------------------------------------
+
 _client = docker.from_env()
 
-# Cache config (seconds)
 STACK_SUMMARY_TTL_SEC = 2
 STACK_DETAIL_TTL_SEC = 2
 
@@ -17,6 +20,12 @@ _cache_summaries_ts: float = 0.0
 _cache_details: Dict[str, Dict] = {}
 _cache_details_ts: Dict[str, float] = {}
 
+_MAX_WORKERS = 4  # max parallel stats calls
+
+
+# --------------------------------------------------------------------------------------
+# Helpers básicos
+# --------------------------------------------------------------------------------------
 
 def _iter_all_containers():
     """
@@ -27,7 +36,7 @@ def _iter_all_containers():
 
 def _split_mem(mem_usage: str) -> Tuple[str, str]:
     """
-    Split "41.27MiB / 5.783GiB" -> ("41.27MiB", "5.783GiB").
+    "41.27MiB / 5.783GiB" -> ("41.27MiB", "5.783GiB")
     """
     parts = [p.strip() for p in mem_usage.split("/")]
     if len(parts) == 2:
@@ -39,7 +48,7 @@ def _split_mem(mem_usage: str) -> Tuple[str, str]:
 
 def _uptime_from_started_at(started_at: str) -> str:
     """
-    Convert Docker StartedAt timestamp into a compact uptime string ("22h", "5m").
+    Convert Docker StartedAt timestamp into "22h" / "5m".
     """
     try:
         cleaned = re.sub(r"(\d{6})\d+Z$", r"\1Z", started_at)
@@ -59,7 +68,7 @@ def _uptime_from_started_at(started_at: str) -> str:
 
 def _uptime_seconds(started_at: str) -> int:
     """
-    Parse StartedAt and return uptime in seconds.
+    StartedAt -> uptime en segundos (int).
     """
     try:
         cleaned = re.sub(r"(\d{6})\d+Z$", r"\1Z", started_at)
@@ -71,8 +80,7 @@ def _uptime_seconds(started_at: str) -> int:
 
 def _classify_state(container) -> str:
     """
-    Derive high-level state string ("running", "stopped", "unhealthy")
-    based on container attrs.
+    "running", "stopped", "unhealthy"
     """
     state = container.attrs.get("State", {})
     health = state.get("Health", {})
@@ -90,9 +98,10 @@ def _classify_state(container) -> str:
 
 def _stack_name_for_container(container) -> str:
     """
-    Pick a stack/group name for the container:
-    1. Prefer com.docker.compose.project label.
-    2. Fallback = prefix before the first '-' in container.name.
+    Stack/group name:
+    1. com.docker.compose.project label si existe
+    2. si no, prefijo antes del primer '-' del nombre
+    3. si no, el nombre completo
     """
     labels = container.attrs.get("Config", {}).get("Labels", {}) or {}
     compose_project = labels.get("com.docker.compose.project")
@@ -107,7 +116,7 @@ def _stack_name_for_container(container) -> str:
 
 def _format_ports(container) -> List[str]:
     """
-    Produce a list like ["3000/tcp -> 127.0.0.1:3000", "443/tcp"].
+    ["3000/tcp -> 127.0.0.1:3000", "443/tcp"] o ["N/A"] si no hay puertos.
     """
     ports: List[str] = []
     net_settings = container.attrs.get("NetworkSettings", {})
@@ -125,34 +134,54 @@ def _format_ports(container) -> List[str]:
     return ports
 
 
+# --------------------------------------------------------------------------------------
+# Stats (caro). Lo aislamos y lo hacemos paralelo solo para contenedores running.
+# --------------------------------------------------------------------------------------
+
 def _get_stats_for_container(container) -> Dict[str, str]:
     """
-    Use container.stats(stream=False) to read cpu%, mem, net io.
-    We compute approximate CPU % using delta between cpu_stats and precpu_stats.
-    NOTE: This is expensive. Only call this when detail is needed.
+    Usa container.stats(stream=False).
+    Calcula CPU %, RAM usada/limite y Net I/O total.
+    Puede levantar excepciones si el contenedor está en un estado raro.
     """
     stats = container.stats(stream=False)
 
     # CPU %
     try:
         cpu_total = stats["cpu_stats"]["cpu_usage"]["total_usage"]
-        cpu_prev = stats["precpu_stats"]["cpu_usage"]["total_usage"]
-        system_total = stats["cpu_stats"]["system_cpu_usage"]
-        system_prev = stats["precpu_stats"]["system_cpu_usage"]
+        cpu_prev_total = stats["precpu_stats"]["cpu_usage"]["total_usage"]
 
-        cpu_delta = cpu_total - cpu_prev
-        system_delta = system_total - system_prev
+        system_total = stats["cpu_stats"].get("system_cpu_usage")
+        system_prev_total = stats["precpu_stats"].get("system_cpu_usage")
+
+        cpu_delta = cpu_total - cpu_prev_total
+        system_delta = (
+            (system_total - system_prev_total)
+            if (system_total is not None and system_prev_total is not None)
+            else 0
+        )
+
+        cpu_count = (
+            stats["cpu_stats"].get("online_cpus")  # new docker
+            or len(
+                stats["cpu_stats"]["cpu_usage"].get("percpu_usage", [])
+            )                                       # old docker
+            or 1
+        )
 
         perc = 0.0
-        if system_delta > 0 and cpu_delta > 0:
-            perc = (
-                cpu_delta / system_delta
-            ) * len(stats["cpu_stats"]["cpu_usage"]["percpu_usage"]) * 100.0
+        if system_delta > 0 and cpu_delta > 0 and cpu_count > 0:
+            # official Docker formula:
+            # CPU% = (cpu_delta / system_delta) * cpu_count * 100
+            perc = (cpu_delta / system_delta) * cpu_count * 100.0
+
         cpu_perc = f"{perc:.2f}%"
-    except Exception:
+        print("CPU %:", cpu_perc)
+    except Exception as e:
+        print("Error calculando CPU %: ", e)
         cpu_perc = "N/A"
 
-    # Memory usage "xx / yy"
+    # Mem "xx / yy"
     try:
         mem_usage = stats["memory_stats"]["usage"]
         mem_limit = stats["memory_stats"]["limit"]
@@ -170,7 +199,7 @@ def _get_stats_for_container(container) -> Dict[str, str]:
     except Exception:
         mem_usage_str = "N/A"
 
-    # Net I/O "rx / tx"
+    # Net "rx / tx"
     try:
         networks = stats.get("networks", {})
         rx_total = 0
@@ -190,12 +219,28 @@ def _get_stats_for_container(container) -> Dict[str, str]:
     except Exception:
         net_io_str = "N/A"
 
+    print("Stats for container: ", container.id, "->", cpu_perc, mem_usage_str, net_io_str)
+
     return {
         "cpu": cpu_perc,
         "mem": mem_usage_str,
         "net": net_io_str,
     }
 
+
+def _safe_stats(container) -> Dict[str, str]:
+    """
+    Wrapper que nunca rompe.
+    """
+    try:
+        return _get_stats_for_container(container)
+    except Exception:
+        return {"cpu": "N/A", "mem": "N/A", "net": "N/A"}
+
+
+# --------------------------------------------------------------------------------------
+# Conversión de memoria a bytes / formatos humanos
+# --------------------------------------------------------------------------------------
 
 def _parse_mem_to_bytes(s: str) -> Optional[int]:
     """
@@ -216,7 +261,7 @@ def _parse_mem_to_bytes(s: str) -> Optional[int]:
 
 def _mem_bytes_from_stat_string(mem_str: str) -> Tuple[Optional[int], Optional[int]]:
     """
-    Given "41.27MiB / 5.783GiB" return (used_bytes, limit_bytes).
+    Dado "41.27MiB / 5.783GiB" -> (used_bytes, limit_bytes)
     """
     if mem_str == "N/A":
         return (None, None)
@@ -228,7 +273,7 @@ def _mem_bytes_from_stat_string(mem_str: str) -> Tuple[Optional[int], Optional[i
 
 def _fmt_seconds(sec: int) -> str:
     """
-    7322 -> "2h" (if >=1h) or "12m"
+    7322 -> "2h" o "12m"
     """
     hours = sec // 3600
     mins = (sec % 3600) // 60
@@ -250,16 +295,17 @@ def _fmt_bytes_to_human(n: int) -> str:
     return f"{mib:.0f}MiB"
 
 
+# --------------------------------------------------------------------------------------
+# Summary: rápido, sin stats
+# --------------------------------------------------------------------------------------
+
 def _build_stack_summaries() -> List[Dict]:
     """
-    Fast path for /api/v2/stacks.
-    We DO NOT call container.stats() here.
-    We only look at container.attrs:
-      - state (healthy / degraded / stopped)
-      - uptime (for longest_uptime)
-      - which stack it belongs to
-    cpu_avg / ram_total_used / ram_host_total -> "N/A" because they
-    require stats to compute accurately.
+    Para /api/v2/stacks.
+    Rápido:
+    - NO llama container.stats()
+    - Calcula count, longest_uptime, status ("healthy"/"degraded"/"stopped")
+    - cpu_avg / ram_* -> "N/A"
     """
     stacks: Dict[str, Dict] = {}
 
@@ -306,12 +352,52 @@ def _build_stack_summaries() -> List[Dict]:
     return summaries
 
 
+# --------------------------------------------------------------------------------------
+# Detail: paralelo para stats sólo en contenedores running
+# --------------------------------------------------------------------------------------
+
 def _build_stack_detail(stack_id: str) -> Optional[Dict]:
     """
-    Slow-ish path for /api/v2/stacks/{stack_id}.
-    We ONLY inspect containers that belong to this stack_id,
-    and we DO call container.stats() for those containers.
+    Para /api/v2/stacks/{stack_id}.
+    - Reúne contenedores del stack.
+    - Corre stats() SOLO en los que están "running", en paralelo (ThreadPoolExecutor).
+    - Para los que no están "running", rellena "N/A".
     """
+    # 1. Filtrar contenedores que pertenecen al stack
+    containers_all: List = []
+    for c in _iter_all_containers():
+        if _stack_name_for_container(c) == stack_id:
+            containers_all.append(c)
+
+    if not containers_all:
+        return None  # stack no existe
+
+    # 2. Dividir entre running y no-running
+    running_containers = []
+    nonrunning_map: Dict[str, Dict[str, str]] = {}
+
+    for c in containers_all:
+        state_class = _classify_state(c)
+        if state_class == "running":
+            running_containers.append(c)
+        else:
+            # no llamamos stats() para estos
+            nonrunning_map[c.id] = {"cpu": "N/A", "mem": "N/A", "net": "N/A"}
+
+    # 3. Pedir stats() en paralelo solo para running
+    stats_map: Dict[str, Dict[str, str]] = {}
+    if running_containers:
+        with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as ex:
+            futures = {ex.submit(_safe_stats, c): c for c in running_containers}
+            for fut in as_completed(futures):
+                c = futures[fut]
+                stats_map[c.id] = fut.result()
+
+    # Agregar los no-running al stats_map
+    for cid, st in nonrunning_map.items():
+        stats_map[cid] = st
+
+    # 4. Armar respuesta final y agregar agregados
     containers_data: List[Dict] = []
     cpu_vals: List[float] = []
     ram_used_total_bytes = 0
@@ -319,27 +405,16 @@ def _build_stack_detail(stack_id: str) -> Optional[Dict]:
     longest_uptime_s = 0
     health_flags: List[str] = []
 
-    for c in _iter_all_containers():
-        current_stack_id = _stack_name_for_container(c)
-        if current_stack_id != stack_id:
-            continue
+    for c in containers_all:
+        cid = c.id
 
         state_class = _classify_state(c)
         started_at = c.attrs.get("State", {}).get("StartedAt", "")
         uptime_h = _uptime_from_started_at(started_at)
         uptime_s = _uptime_seconds(started_at)
-
-        # This is the expensive call, but now only for this stack
-        try:
-            st = _get_stats_for_container(c)
-        except Exception:
-            st = {
-                "cpu": "N/A",
-                "mem": "N/A",
-                "net": "N/A",
-            }
-
         ports_list = _format_ports(c)
+
+        st = stats_map.get(cid, {"cpu": "N/A", "mem": "N/A", "net": "N/A"})
 
         containers_data.append({
             "id": c.short_id,
@@ -357,7 +432,7 @@ def _build_stack_detail(stack_id: str) -> Optional[Dict]:
             },
         })
 
-        # Aggregate metrics for summary
+        # agregados
         health_flags.append(state_class)
         if uptime_s > longest_uptime_s:
             longest_uptime_s = uptime_s
@@ -374,21 +449,7 @@ def _build_stack_detail(stack_id: str) -> Optional[Dict]:
         if limit_b is not None and limit_b > ram_host_total_bytes:
             ram_host_total_bytes = limit_b
 
-    if not containers_data:
-        # Stack not found
-        return None
-
-    # Stack status (not currently returned in StackDetailResponse,
-    # but could be logged/extended later)
-    if all(s == "stopped" for s in health_flags):
-        stack_status = "stopped"
-    elif any(s == "unhealthy" for s in health_flags):
-        stack_status = "degraded"
-    else:
-        stack_status = "healthy"
-    _ = stack_status  # silence linter for now
-
-    # Avg CPU across containers in this stack
+    # CPU promedio
     if cpu_vals:
         cpu_avg_val = sum(cpu_vals) / len(cpu_vals)
         cpu_avg_str = f"{cpu_avg_val:.2f}%"
@@ -414,10 +475,13 @@ def _build_stack_detail(stack_id: str) -> Optional[Dict]:
     return detail
 
 
+# --------------------------------------------------------------------------------------
+# Caché (TTL corto)
+# --------------------------------------------------------------------------------------
+
 def get_stack_summaries_cached() -> List[Dict]:
     """
-    Cached wrapper around _build_stack_summaries().
-    Cache TTL is STACK_SUMMARY_TTL_SEC.
+    Cache de summaries con TTL corto.
     """
     global _cache_summaries, _cache_summaries_ts
     now = time.time()
@@ -435,8 +499,7 @@ def get_stack_summaries_cached() -> List[Dict]:
 
 def get_stack_detail_cached(stack_id: str) -> Optional[Dict]:
     """
-    Cached wrapper around _build_stack_detail(stack_id).
-    Cache TTL is STACK_DETAIL_TTL_SEC (per stack).
+    Cache de detalle por stack con TTL corto.
     """
     global _cache_details, _cache_details_ts
     now = time.time()
@@ -450,7 +513,7 @@ def get_stack_detail_cached(stack_id: str) -> Optional[Dict]:
 
     data = _build_stack_detail(stack_id)
 
-    # If data is None (stack not found), don't cache negative result.
+    # si no existe el stack, no cachear None
     if data is not None:
         _cache_details[stack_id] = data
         _cache_details_ts[stack_id] = now
