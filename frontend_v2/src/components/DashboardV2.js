@@ -1,6 +1,11 @@
-
 import React, { useEffect, useState, useCallback } from "react";
-import { listStacks, getStackDetail, restartContainer } from "../api";
+import {
+  listStacks,
+  getStackDetail,
+  restartContainer,
+  startContainer,
+  stopContainer,
+} from "../api";
 
 import HeaderBar from "./layout/HeaderBar";
 import SidebarStacks from "./sidebar/SidebarStacks";
@@ -98,16 +103,42 @@ export default function DashboardV2() {
     };
   }, [token, selectedStackId]);
 
-  // handlers
+  // handlers modales
   const openLogs = useCallback((cid) => setSelectedContainerId(cid), []);
   const openShell = useCallback((cid) => setTerminalContainerId(cid), []);
+
+  // acciones sobre el contenedor
 
   const doRestart = useCallback(
     async (cid) => {
       try {
         await restartContainer(cid); // POST /api/containers/:id/restart
+        const data = await getStackDetail(selectedStackId); // refrescar detalle
+        setStackDetail(data);
+      } catch (e) {
+        alert(e?.message || String(e));
+      }
+    },
+    [selectedStackId]
+  );
 
-        // refrescar detalle
+  const doStart = useCallback(
+    async (cid) => {
+      try {
+        await startContainer(cid); // POST /api/containers/:id/start
+        const data = await getStackDetail(selectedStackId);
+        setStackDetail(data);
+      } catch (e) {
+        alert(e?.message || String(e));
+      }
+    },
+    [selectedStackId]
+  );
+
+  const doStop = useCallback(
+    async (cid) => {
+      try {
+        await stopContainer(cid); // POST /api/containers/:id/stop
         const data = await getStackDetail(selectedStackId);
         setStackDetail(data);
       } catch (e) {
@@ -230,15 +261,15 @@ export default function DashboardV2() {
           </div>
 
           {error && (
-            <div style={{ color: "#ff6b6b", fontSize: 12 }}>
-              {error}
-            </div>
+            <div style={{ color: "#ff6b6b", fontSize: 12 }}>{error}</div>
           )}
 
           <GraphView
             stackDetail={stackDetail}
             onOpenLogs={openLogs}
             onOpenShell={openShell}
+            onStart={doStart}
+            onStop={doStop}
             onRestart={doRestart}
           />
         </main>

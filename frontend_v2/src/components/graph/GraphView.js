@@ -1,6 +1,21 @@
 // src/components/graph/GraphView.js
 import React from "react";
 
+const miniBtnStyle = {
+  background: "#111827",
+  border: "1px solid var(--border)",
+  borderRadius: "6px",
+  padding: "6px 8px",        // <-- antes era "2px 4px", un poco más grande
+  fontSize: "14px",          // <-- antes 10px
+  lineHeight: "1.2",         // <-- antes 1.2
+  color: "var(--txt)",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "px",
+  flexShrink: 0,
+};
+
 const cardStyle = {
   background: "#111827",
   border: "1px solid var(--border)",
@@ -15,21 +30,6 @@ const cardStyle = {
   width: "200px",
   minWidth: "200px",
   maxWidth: "200px",
-};
-
-const miniBtnStyle = {
-  background: "#111827",
-  border: "1px solid var(--border)",
-  borderRadius: "4px",
-  padding: "2px 4px",
-  fontSize: "10px",
-  lineHeight: "1.2",
-  color: "var(--txt)",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "4px",
-  flexShrink: 0,
 };
 
 function StatusPill({ state }) {
@@ -73,7 +73,7 @@ function StatusPill({ state }) {
   );
 }
 
-function ContainerCard({ ct, onOpenLogs, onOpenShell, onRestart }) {
+function ContainerCard({ ct, onOpenLogs, onOpenShell, onStart, onStop, onRestart }) {
   return (
     <div style={cardStyle}>
       {/* header: nombre + estado */}
@@ -161,19 +161,26 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onRestart }) {
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: "4px",
-          marginTop: "8px",
+          gap: "1px",
+          marginTop: "18px",
         }}
       >
-        <button style={miniBtnStyle} onClick={() => onOpenLogs(ct.id)}>
-          📜 Logs
+        <button style={miniBtnStyle} onClick={() => onStart(ct.id)}>
+          ▶
         </button>
-        <button style={miniBtnStyle} onClick={() => onOpenShell(ct.id)}>
-          💻 Sh
+        <button style={miniBtnStyle} onClick={() => onStop(ct.id)}>
+          ⏹
         </button>
         <button style={miniBtnStyle} onClick={() => onRestart(ct.id)}>
-          🔄 Rst
+          🔄
         </button>
+        <button style={miniBtnStyle} onClick={() => onOpenLogs(ct.id)}>
+          📜
+        </button>
+        <button style={miniBtnStyle} onClick={() => onOpenShell(ct.id)}>
+          💻
+        </button>
+        
       </div>
     </div>
   );
@@ -183,6 +190,8 @@ export default function GraphView({
   stackDetail,
   onOpenLogs,
   onOpenShell,
+  onStart,
+  onStop,
   onRestart,
 }) {
   if (!stackDetail) {
@@ -238,6 +247,8 @@ export default function GraphView({
             ct={ct}
             onOpenLogs={onOpenLogs}
             onOpenShell={onOpenShell}
+            onStart={onStart}
+            onStop={onStop}
             onRestart={onRestart}
           />
         ))}
