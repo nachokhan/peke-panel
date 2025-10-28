@@ -1,4 +1,4 @@
-// frontend_v2/src/LogsModal.js
+// frontend_v2/src/components/LogsModal.js
 import React, {
   useState,
   useEffect,
@@ -20,7 +20,7 @@ export default function LogsModal({ containerId, onClose }) {
   const [lines, setLines] = useState(100);
   const [error, setError] = useState("");
 
-  // solo se usa para el efecto de "flash" visual cuando copiás
+  // flash visual al copiar
   const [flashCopy, setFlashCopy] = useState(false);
 
   // búsqueda
@@ -28,7 +28,69 @@ export default function LogsModal({ containerId, onClose }) {
   const [matches, setMatches] = useState([]);
   const [currentMatch, setCurrentMatch] = useState(0);
 
-  // posición / tamaño persistente del modal
+  // ===== tamaño de fuente dinámico del área de logs =====
+  const [fontPx, setFontPx] = useState(() => {
+    try {
+      const raw = localStorage.getItem("logsModalFontPx");
+      const n = parseInt(raw, 10);
+      if (!isNaN(n) && n >= 8 && n <= 24) {
+        return n;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 12; // default px
+  });
+
+  // line-height derivada del tamaño actual
+  const lineHeightPx = Math.round(fontPx * 1.3);
+
+  // persistir preferencia de tamaño de fuente
+  useEffect(() => {
+    try {
+      localStorage.setItem("logsModalFontPx", String(fontPx));
+    } catch {
+      /* ignore */
+    }
+  }, [fontPx]);
+
+  // atajos Ctrl/Cmd + / - / 0 para zoom del área de logs
+  useEffect(() => {
+    function onKey(e) {
+      const ctrlLike = e.ctrlKey || e.metaKey;
+      if (!ctrlLike) return;
+
+      const key = e.key;
+      const isPlus = key === "+" || key === "=";
+      const isMinus = key === "-";
+      const isReset = key === "0";
+
+      if (isPlus || isMinus || isReset) {
+        e.preventDefault(); // evita zoom global del browser
+      }
+
+      if (isPlus) {
+        setFontPx((prev) => {
+          const next = prev + 1;
+          return next > 24 ? 24 : next;
+        });
+      } else if (isMinus) {
+        setFontPx((prev) => {
+          const next = prev - 1;
+          return next < 8 ? 8 : next;
+        });
+      } else if (isReset) {
+        setFontPx(12);
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  // ===== posición / tamaño persistente del modal =====
   function getInitialPosition() {
     try {
       const raw = localStorage.getItem("logsModalPos");
@@ -95,13 +157,10 @@ export default function LogsModal({ containerId, onClose }) {
       const response = await getContainerLogs(containerId, lines);
       const newText = response.data.logs || "";
 
-      // marcamos que, una vez que se rendericen estos logs,
-      // debemos scrollear al final
+      // luego de renderizar estos logs queremos scrollear al fondo
       stickToBottomRef.current = true;
 
       setLogs(newText);
-      // NO hacemos scroll acá.
-      // NO disparamos flash acá.
     } catch (err) {
       setError("Failed to fetch logs");
     }
@@ -350,7 +409,6 @@ export default function LogsModal({ containerId, onClose }) {
   }, [lines, searchTerm]);
 
   // ===== pegar scroll al fondo DESPUÉS de cada refresh =====
-  // corre en layoutEffect para que sea el último paso antes de pintar
   useLayoutEffect(() => {
     if (!logsContainerRef.current) return;
 
@@ -477,6 +535,22 @@ export default function LogsModal({ containerId, onClose }) {
         <pre
           ref={logsContainerRef}
           className={"logsmodal-body" + (flashCopy ? " flash" : "")}
+          style={{
+            // override de estilos base para poder escalar fuente
+            flex: "1 1 auto",
+            background: "#0a0d12",
+            color: "#0f0",
+            padding: "12px",
+            overflowY: "auto",
+            whiteSpace: "pre-wrap",
+            wordWrap: "break-word",
+            borderTop: "1px solid #1b1f2c",
+            borderBottom: "1px solid #1b1f2c",
+            fontFamily: "monospace",
+            fontSize: fontPx + "px",
+            lineHeight: lineHeightPx + "px",
+            margin: 0,
+          }}
         >
           {renderHighlightedLogs()}
         </pre>
