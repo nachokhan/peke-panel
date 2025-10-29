@@ -805,7 +805,6 @@ export default function ExecModal({ containerId, onClose }) {
           className={"logsmodal-body" + (flashCopy ? " flash" : "")}
           style={{
             flex: "1 1 auto",
-            background: "#0a0d12",
             color: "#0f0",
             padding: "12px",
             overflowY: "auto",

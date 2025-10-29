@@ -538,7 +538,6 @@ export default function LogsModal({ containerId, onClose }) {
           style={{
             // override de estilos base para poder escalar fuente
             flex: "1 1 auto",
-            background: "#0a0d12",
             color: "#0f0",
             padding: "12px",
             overflowY: "auto",
