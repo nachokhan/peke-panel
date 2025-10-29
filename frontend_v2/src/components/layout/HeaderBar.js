@@ -51,7 +51,7 @@ export default function HeaderBar({ onLogout }){
             marginTop: 4,
           }}
         >
-          Visor en vivo de tus servicios dockerizados
+          Online viewer for your dockerized services
         </div>
       </div>
 
