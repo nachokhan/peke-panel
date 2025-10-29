@@ -16,11 +16,11 @@ services:
 
   frontend:
     build:
-      context: ./frontend_v2
+      context: ./frontend_${FRONTEND_VERSION}
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./frontend_v2:/app
+      - ./frontend_${FRONTEND_VERSION}:/app
       - /app/node_modules
     ports:
       - "3000:3000"
