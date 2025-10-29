@@ -1,5 +1,6 @@
 services:
   backend:
+    container_name: peke-panel-back-dev
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -15,6 +16,7 @@ services:
       - "8000:8000"
 
   frontend:
+    container_name: peke-panel-front-dev
     build:
       context: ./frontend_${FRONTEND_VERSION}
       dockerfile: Dockerfile
