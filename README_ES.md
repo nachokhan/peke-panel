@@ -2,6 +2,8 @@
 
 Peke Panel es una herramienta de monitoreo y gestión para contenedores y stacks de Docker. Proporciona una interfaz web para visualizar el estado de los servicios, su consumo de recursos (CPU, RAM) y realizar acciones básicas sobre ellos.
 
+![Dashboard de Peke Panel](./assets/panel.png)
+
 ## Arquitectura
 
 El proyecto sigue una arquitectura cliente-servidor:
@@ -15,7 +17,9 @@ El proyecto sigue una arquitectura cliente-servidor:
 -   **Monitoreo de Contenedores**: Muestra el estado (running, stopped, unhealthy), uso de CPU y memoria de cada contenedor.
 -   **Acciones de Contenedor**: Iniciar, detener y reiniciar contenedores directamente desde la interfaz.
 -   **Visualización de Logs**: Permite ver los logs de cualquier contenedor en tiempo real.
+    ![Modal de Logs](./assets/logs.png)
 -   **Terminal Interactiva**: Abrir una sesión de shell (`sh`) dentro de un contenedor en ejecución.
+    ![Modal de Shell](./assets/shell.png)
 
 ## Cómo ejecutar
 
