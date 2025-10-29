@@ -1,6 +1,5 @@
 services:
   backend:
-    container_name: peke-panel-back-prod
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -15,7 +14,6 @@ services:
       - internal-net
 
   frontend:
-    container_name: peke-panel-front-prod
     build:
       context: ./frontend_${FRONTEND_VERSION}
       dockerfile: Dockerfile
