@@ -1,3 +1,4 @@
+// src/components/DashboardV2.js
 import React, { useEffect, useState, useCallback } from "react";
 import {
   listStacks,
@@ -5,6 +6,7 @@ import {
   restartContainer,
   startContainer,
   stopContainer,
+  registerAuthErrorCallback, // <-- new import
 } from "../api";
 
 import HeaderBar from "./layout/HeaderBar";
@@ -15,7 +17,7 @@ import ExecModal from "./ExecModal";
 import LoginForm from "./auth/LoginForm";
 
 export default function DashboardV2() {
-  // auth
+  // auth state: we mirror whatever is in localStorage initially
   const [token, setToken] = useState(() => localStorage.getItem("token") || "");
 
   // data
@@ -29,10 +31,14 @@ export default function DashboardV2() {
   const [error, setError] = useState("");
 
   // modals
-  const [selectedContainerId, setSelectedContainerId] = useState(null);
-  const [terminalContainerId, setTerminalContainerId] = useState(null);
+  const [selectedContainerId, setSelectedContainerId] = useState(null); // logs modal
+  const [terminalContainerId, setTerminalContainerId] = useState(null); // exec modal
 
-  // logout
+  /**
+   * Centralized logout logic.
+   * We use this both when the user clicks "Logout" AND when the backend
+   * tells us the token is no longer valid (401/403).
+   */
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
     setToken("");
@@ -41,7 +47,21 @@ export default function DashboardV2() {
     setStackDetail(null);
   }, []);
 
-  // LOAD STACKS (después de login)
+  /**
+   * Listen for "auth error" notifications from api.js.
+   * api.js will call all registered callbacks when it sees 401/403.
+   *
+   * This means: if the token expires, we immediately wipe local state
+   * and show the login screen without requiring the user to click Logout.
+   */
+  useEffect(() => {
+    const cb = () => {
+      handleLogout();
+    };
+    registerAuthErrorCallback(cb);
+  }, [handleLogout]);
+
+  // LOAD STACKS after login / token change
   useEffect(() => {
     if (!token) return;
     let alive = true;
@@ -51,7 +71,6 @@ export default function DashboardV2() {
         setLoadingStacks(true);
         setError("");
 
-        // listStacks devuelve data.stacks ([])
         const stacksArr = await listStacks();
 
         if (!alive) return;
@@ -71,7 +90,7 @@ export default function DashboardV2() {
     };
   }, [token]);
 
-  // LOAD STACK DETAIL cuando cambia selectedStackId
+  // LOAD STACK DETAIL when selectedStackId changes
   useEffect(() => {
     if (!token) return;
     if (!selectedStackId) {
@@ -103,17 +122,18 @@ export default function DashboardV2() {
     };
   }, [token, selectedStackId]);
 
-  // handlers modales
+  // modal helpers
   const openLogs = useCallback((cid) => setSelectedContainerId(cid), []);
   const openShell = useCallback((cid) => setTerminalContainerId(cid), []);
 
-  // acciones sobre el contenedor
-
+  // container actions
   const doRestart = useCallback(
     async (cid) => {
       try {
         await restartContainer(cid); // POST /api/containers/:id/restart
-        const data = await getStackDetail(selectedStackId); // refrescar detalle
+
+        // refresh the current stack detail after restart
+        const data = await getStackDetail(selectedStackId);
         setStackDetail(data);
       } catch (e) {
         alert(e?.message || String(e));
@@ -126,6 +146,7 @@ export default function DashboardV2() {
     async (cid) => {
       try {
         await startContainer(cid); // POST /api/containers/:id/start
+
         const data = await getStackDetail(selectedStackId);
         setStackDetail(data);
       } catch (e) {
@@ -139,6 +160,7 @@ export default function DashboardV2() {
     async (cid) => {
       try {
         await stopContainer(cid); // POST /api/containers/:id/stop
+
         const data = await getStackDetail(selectedStackId);
         setStackDetail(data);
       } catch (e) {
@@ -148,7 +170,13 @@ export default function DashboardV2() {
     [selectedStackId]
   );
 
-  // si no hay token => login
+  /**
+   * If there is no token, we don't render the dashboard at all.
+   * We render the LoginForm instead.
+   *
+   * After the user logs in successfully, LoginForm calls onLoggedIn(token),
+   * which stores the token and brings us back into the app.
+   */
   if (!token) {
     return <LoginForm onLoggedIn={(t) => setToken(t)} />;
   }
@@ -215,7 +243,7 @@ export default function DashboardV2() {
                 {stackDetail
                   ? `${stackDetail.summary.containers_count} containers · RAM ${stackDetail.summary.ram_total_used} / ${stackDetail.summary.ram_host_total} · CPU ${stackDetail.summary.cpu_avg}`
                   : loadingDetail
-                  ? "Cargando…"
+                  ? "Loading…"
                   : ""}
               </div>
             </div>
