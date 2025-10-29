@@ -1,5 +1,6 @@
 services:
   backend:
+    container_name: peke-panel-back-prod
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -10,8 +11,11 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ADMIN_USER=${ADMIN_USER}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    networks:
+      - internal-net
 
   frontend:
+    container_name: peke-panel-front-prod
     build:
       context: ./frontend_${FRONTEND_VERSION}
       dockerfile: Dockerfile
@@ -20,3 +24,14 @@ services:
       - "127.0.0.1:${FRONTEND_PORT}:80"
     depends_on:
       - backend
+    networks:
+      - internal-net
+      - public-net
+
+networks:
+  internal-net:
+    driver: bridge
+    internal: true
+
+  public-net:
+    driver: bridge
