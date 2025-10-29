@@ -1,7 +1,17 @@
-
 import React from "react";
 
 export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
+  // helper: treat "N/A", null, undefined, "-" as "not present"
+  function isPresent(v) {
+    return (
+      v !== undefined &&
+      v !== null &&
+      v !== "N/A" &&
+      v !== "-" &&
+      v !== ""
+    );
+  }
+
   return (
     <aside
       style={{
@@ -17,6 +27,27 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
     >
       {stacks.map((st) => {
         const active = st.stack_id === selectedStackId;
+
+        // ---- Build RAM label
+        // Prefer "<used>/<host>" if both exist and are meaningful.
+        // Otherwise, fall back to st.ram_total if provided.
+        // If nothing meaningful, ramLabel stays null -> we won't render the chip.
+        let ramLabel = null;
+        if (isPresent(st.ram_total_used) && isPresent(st.ram_host_total)) {
+          ramLabel = `${st.ram_total_used}/${st.ram_host_total}`;
+        } else if (isPresent(st.ram_total)) {
+          ramLabel = `${st.ram_total}`;
+        }
+
+        // ---- Build CPU label
+        // Prefer avg; fallback to total; else null (chip not rendered).
+        let cpuLabel = null;
+        if (isPresent(st.cpu_avg)) {
+          cpuLabel = `${st.cpu_avg}`;
+        } else if (isPresent(st.cpu_total)) {
+          cpuLabel = `${st.cpu_total}`;
+        }
+
         return (
           <div
             key={st.stack_id}
@@ -79,40 +110,46 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
                 lineHeight: "1.4",
               }}
             >
-              <div
-                style={{
-                  display: "inline-block",
-                  background: "#1f2937",
-                  border: "1px solid var(--border)",
-                  borderRadius: "8px",
-                  padding: "2px 4px",
-                  margin: "1px 2px 0 0",
-                  fontSize: "12px",
-                  lineHeight: "1.2",
-                  color: "var(--txt-dim)",
-                }}
-              >
-                RAM {st.ram_total_used}/{st.ram_host_total}
-              </div>
+              {/* RAM chip: render only if we actually have data */}
+              {ramLabel && (
+                <div
+                  style={{
+                    display: "inline-block",
+                    background: "#1f2937",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    padding: "2px 4px",
+                    margin: "1px 2px 0 0",
+                    fontSize: "12px",
+                    lineHeight: "1.2",
+                    color: "var(--txt-dim)",
+                  }}
+                >
+                  RAM: {ramLabel}
+                </div>
+              )}
 
-              <div
-                style={{
-                  display: "inline-block",
-                  background: "#1f2937",
-                  border: "1px solid var(--border)",
-                  borderRadius: "8px",
-                  padding: "2px 4px",
-                  margin: "1px 2px 0 0",
-                  fontSize: "12px",
-                  lineHeight: "1.2",
-                  color: "var(--txt-dim)",
-                }}
-              >
-                CPU {st.cpu_avg}
-              </div>
+              {/* CPU chip: render only if we actually have data */}
+              {cpuLabel && (
+                <div
+                  style={{
+                    display: "inline-block",
+                    background: "#1f2937",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    padding: "2px 4px",
+                    margin: "1px 2px 0 0",
+                    fontSize: "12px",
+                    lineHeight: "1.2",
+                    color: "var(--txt-dim)",
+                  }}
+                >
+                  CPU: ≈ {st.cpu_avg} /ctr
+                </div>
+              )}
 
               <div style={{ marginTop: "4px", fontSize: "12px" }}>
-                Longest up: {st.longest_uptime}
+                Longest up: {st.longest_uptime || "—"}
               </div>
             </div>
           </div>

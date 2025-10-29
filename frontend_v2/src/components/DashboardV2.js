@@ -90,37 +90,65 @@ export default function DashboardV2() {
     };
   }, [token]);
 
-  // LOAD STACK DETAIL when selectedStackId changes
-  useEffect(() => {
-    if (!token) return;
-    if (!selectedStackId) {
-      setStackDetail(null);
-      return;
+// LOAD STACK DETAIL when selectedStackId changes
+useEffect(() => {
+  if (!token) return;
+  if (!selectedStackId) {
+    setStackDetail(null);
+    return;
+  }
+
+  let alive = true;
+
+  async function loadDetail() {
+    try {
+      setLoadingDetail(true);
+      setError("");
+
+      const data = await getStackDetail(selectedStackId);
+      if (!alive) return;
+
+      setStackDetail(data);
+
+      // <-- NEW: merge live summary metrics from detail
+      // We push RAM/CPU info from data.summary into the matching entry
+      // in `stacks`, so SidebarStacks can show real numbers instead of "N/A".
+      setStacks((prev) =>
+        prev.map((st) =>
+          st.stack_id === selectedStackId
+            ? {
+                ...st,
+                cpu_avg:
+                  data?.summary?.cpu_avg ?? st.cpu_avg,
+                ram_total_used:
+                  data?.summary?.ram_total_used ?? st.ram_total_used,
+                ram_host_total:
+                  data?.summary?.ram_host_total ?? st.ram_host_total,
+
+                // optional fallbacks if backend exposes these:
+                cpu_total:
+                  data?.summary?.cpu_total ?? st.cpu_total,
+                ram_total:
+                  data?.summary?.ram_total ?? st.ram_total,
+              }
+            : st
+        )
+      );
+      // <-- END NEW
+    } catch (e) {
+      if (!alive) return;
+      setError(e?.message || String(e));
+    } finally {
+      if (alive) setLoadingDetail(false);
     }
+  }
 
-    let alive = true;
+  loadDetail();
+  return () => {
+    alive = false;
+  };
+}, [token, selectedStackId]);
 
-    async function loadDetail() {
-      try {
-        setLoadingDetail(true);
-        setError("");
-
-        const data = await getStackDetail(selectedStackId);
-        if (!alive) return;
-        setStackDetail(data);
-      } catch (e) {
-        if (!alive) return;
-        setError(e?.message || String(e));
-      } finally {
-        if (alive) setLoadingDetail(false);
-      }
-    }
-
-    loadDetail();
-    return () => {
-      alive = false;
-    };
-  }, [token, selectedStackId]);
 
   // modal helpers
   const openLogs = useCallback((cid) => setSelectedContainerId(cid), []);
