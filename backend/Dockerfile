@@ -1,5 +1,5 @@
 # Base stage
-FROM python:3.12-slim as base
+FROM python:3.12-slim AS base
 
 WORKDIR /app
 
@@ -17,11 +17,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Development stage
-FROM base as development
+FROM base AS development
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # Production stage
-FROM base as production
+FROM base AS production
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
