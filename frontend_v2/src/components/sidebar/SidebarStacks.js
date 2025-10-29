@@ -5,7 +5,7 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
   return (
     <aside
       style={{
-        width: "240px",
+        width: "320px",
         background: "var(--side)",
         borderRight: "1px solid var(--border)",
         padding: "16px",
@@ -27,7 +27,7 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
                 : "1px solid var(--border)",
               borderRadius: "8px",
               padding: "12px",
-              fontSize: "12px",
+              fontSize: "15px",
               lineHeight: "1.4",
               cursor: "pointer",
               color: "var(--txt)",
@@ -60,7 +60,7 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
                   color: "#3ddc84",
                   border: "1px solid rgba(61,220,132,.3)",
                   borderRadius: "999px",
-                  fontSize: "10px",
+                  fontSize: "12px",
                   lineHeight: "1.2",
                   padding: "2px 6px",
                   whiteSpace: "nowrap",
@@ -87,7 +87,7 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
                   borderRadius: "8px",
                   padding: "2px 4px",
                   margin: "1px 2px 0 0",
-                  fontSize: "10px",
+                  fontSize: "12px",
                   lineHeight: "1.2",
                   color: "var(--txt-dim)",
                 }}
@@ -103,7 +103,7 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
                   borderRadius: "8px",
                   padding: "2px 4px",
                   margin: "1px 2px 0 0",
-                  fontSize: "10px",
+                  fontSize: "12px",
                   lineHeight: "1.2",
                   color: "var(--txt-dim)",
                 }}
@@ -111,7 +111,7 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
                 CPU {st.cpu_avg}
               </div>
 
-              <div style={{ marginTop: "4px" }}>
+              <div style={{ marginTop: "4px", fontSize: "12px" }}>
                 Longest up: {st.longest_uptime}
               </div>
             </div>
