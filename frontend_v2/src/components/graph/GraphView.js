@@ -5,15 +5,17 @@ const miniBtnStyle = {
   background: "#111827",
   border: "1px solid var(--border)",
   borderRadius: "6px",
-  padding: "6px 8px",        // <-- antes era "2px 4px", un poco más grande
-  fontSize: "14px",          // <-- antes 10px
+  padding: "4px 8px",        // <-- antes era "2px 4px", un poco más grande
+  fontSize: "16px",          // <-- antes 10px
   lineHeight: "1.2",         // <-- antes 1.2
   color: "var(--txt)",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
-  gap: "px",
+  // gap: "4px",
   flexShrink: 0,
+  flex: "1 1 auto",
+  justifyContent: "center",
 };
 
 const cardStyle = {
@@ -27,9 +29,14 @@ const cardStyle = {
   lineHeight: "1.4",
   display: "flex",
   flexDirection: "column",
-  width: "200px",
-  minWidth: "200px",
-  maxWidth: "200px",
+
+  // display: "flex",
+  // flexDirection: "column",
+
+  width: "300px",
+  minWidth: "200",
+  maxWidth: "380px",
+  // flex: "1 1 auto",
 };
 
 function StatusPill({ state }) {
@@ -76,7 +83,7 @@ function StatusPill({ state }) {
 function ContainerCard({ ct, onOpenLogs, onOpenShell, onStart, onStop, onRestart }) {
   return (
     <div style={cardStyle}>
-      {/* header: nombre + estado */}
+      {/* header: name + state */}
       <div
         style={{
           display: "flex",
@@ -91,9 +98,9 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onStart, onStop, onRestart
             fontWeight: 600,
             color: "var(--txt)",
             wordBreak: "break-word",
-            fontSize: "13px",
+            fontSize: "16px",
             lineHeight: "1.2",
-            maxWidth: "130px",
+            maxWidth: "300px",
             whiteSpace: "nowrap",
             textOverflow: "ellipsis",
             overflow: "hidden",
@@ -106,11 +113,11 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onStart, onStop, onRestart
         <StatusPill state={ct.state} />
       </div>
 
-      {/* métricas */}
+      {/* metrics */}
       <div
         style={{
           color: "var(--txt-dim)",
-          fontSize: "11px",
+          fontSize: "14px",
           lineHeight: "1.4",
           display: "grid",
           gridTemplateColumns: "auto 1fr",
@@ -133,10 +140,10 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onStart, onStop, onRestart
         <div>{ct.net}</div>
       </div>
 
-      {/* puertos truncados */}
+      {/* truncated ports */}
       <div
         style={{
-          fontSize: "11px",
+          fontSize: "14px",
           color: "var(--txt)",
           lineHeight: "1.3",
           whiteSpace: "nowrap",
@@ -156,28 +163,53 @@ function ContainerCard({ ct, onOpenLogs, onOpenShell, onStart, onStop, onRestart
           : ct.ports || "N/A"}
       </div>
 
-      {/* acciones */}
+      {/* actions */}
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: "1px",
+          gap: "8px",
           marginTop: "18px",
         }}
       >
-        <button style={miniBtnStyle} onClick={() => onStart(ct.id)}>
-          ▶
+        <button 
+          style={{ ...miniBtnStyle, borderColor: "transparent" }} 
+          onClick={() => onStart(ct.id)}
+        >
+          ▶️
         </button>
-        <button style={miniBtnStyle} onClick={() => onStop(ct.id)}>
-          ⏹
+        <button 
+          style={{ ...miniBtnStyle, borderColor: "transparent" }} 
+          onClick={() => onStop(ct.id)}
+        >
+          ⏹️
         </button>
-        <button style={miniBtnStyle} onClick={() => onRestart(ct.id)}>
+        <button 
+          style={{ ...miniBtnStyle, borderColor: "transparent" }} 
+          onClick={() => onRestart(ct.id)}
+        >
           🔄
         </button>
-        <button style={miniBtnStyle} onClick={() => onOpenLogs(ct.id)}>
+        <span
+          style={{
+            display: "inline-block",
+            width: "2px",
+            height: "30px",
+            background: "var(--border)",
+            margin: "0 4px",
+            alignSelf: "stretch",
+          }}
+        />
+        <button 
+          style={miniBtnStyle} 
+          onClick={() => onOpenLogs(ct.id)}
+        >
           📜
         </button>
-        <button style={miniBtnStyle} onClick={() => onOpenShell(ct.id)}>
+        <button 
+          style={miniBtnStyle} 
+          onClick={() => onOpenShell(ct.id)}
+        >
           💻
         </button>
         
@@ -233,7 +265,7 @@ export default function GraphView({
         overflowY: "auto",
       }}
     >
-      {/* grid de cards */}
+      {/* cards grid */}
       <div
         style={{
           display: "flex",
