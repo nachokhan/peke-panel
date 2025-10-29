@@ -420,7 +420,7 @@ export default function LogsModal({ containerId, onClose }) {
   }, [logs, searchTerm, matches]);
 
   // ===== opciones de cantidad de líneas =====
-  const lineOptions = [100, 500, 1000, 5000];
+  const lineOptions = [50, 100, 500, 1000, 5000];
 
   // ===== render =====
   return (
