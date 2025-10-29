@@ -11,17 +11,19 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ADMIN_USER=${ADMIN_USER}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    ports:
+      - "8000:8000"
 
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend_${FRONTEND_VERSION}
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./frontend:/app
+      - ./frontend_${FRONTEND_VERSION}:/app
       - /app/node_modules
     ports:
-      - "${FRONTEND_PORT}:3000"
+      - "3000:3000"
     environment:
       - CHOKIDAR_USEPOLLING=true
     depends_on:

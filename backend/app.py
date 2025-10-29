@@ -1,93 +1,56 @@
 import json
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
+
 from fastapi import (
     Depends,
     FastAPI,
     Form,
     HTTPException,
-    Header,
     status,
     Body,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from jose import JWTError, jwt
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+from routers.v2 import router as v2_router
+from auth import (
+    create_access_token,
+    get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ADMIN_USER,
+    ADMIN_PASSWORD,
+)
 
-# --- Configuration ---
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-ADMIN_USER = os.getenv("ADMIN_USER")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+# IMPORTANT: we import the snapshot loop
+from services.snapshot import start_snapshot_loop
 
 # --- FastAPI App Initialization ---
 app = FastAPI(title="Docker Monitor")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this to the frontend URL
+    allow_origins=["*"],  # in production limit to the frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Authentication ---
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    """Creates a new JWT access token."""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+# startup event: start the background refresh loop
+@app.on_event("startup")
+async def _on_startup():
+    # start the loop that keeps the stack snapshot in memory
+    await start_snapshot_loop()
+
+# Register /api/v2 routes
+app.include_router(v2_router)
 
 
-async def get_current_user(authorization: str | None = Header(default=None)):
-    """
-    Dependency to get the current user from the access token in the Authorization header.
-    Raises HTTPException if the token is invalid or missing.
-    """
-    if authorization is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header missing",
-        )
-    try:
-        token_type, token = authorization.split()
-        if token_type.lower() != "bearer":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type",
-            )
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None or username != ADMIN_USER:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
-        return username
-    except (ValueError, JWTError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
-
-
-# --- Docker Service Logic ---
+# --- Docker Service Logic (v1 legacy) ---
 def get_docker_statuses():
     """
-    Checks docker container statuses by running 'docker ps' and 'docker stats'.
-    Returns a list of all active service statuses with resource usage or a mock list if Docker is not available.
+    v1 logic legacy (dashboard viejo). Usa docker CLI via subprocess.
     """
     try:
-        # Command to get all running containers in JSON format
         ps_cmd = [
             "docker", "ps",
             "--format", "{{json .}}"
@@ -100,7 +63,6 @@ def get_docker_statuses():
 
         running_containers_ps = [json.loads(line) for line in output_lines]
 
-        # Command to get stats for all running containers
         stats_cmd = [
             "docker", "stats", "--no-stream",
             "--format", "{{json .}}"
@@ -119,8 +81,7 @@ def get_docker_statuses():
             container_id = container_ps.get("ID")
             stats = running_containers_stats.get(container_id, {})
 
-            # Determine health status
-            health = container_ps.get("State", "stopped")  # Default to stopped if no state
+            health = container_ps.get("State", "stopped")
             if "unhealthy" in health:
                 status_val = "unhealthy"
             elif "running" in health or "healthy" in health:
@@ -154,7 +115,7 @@ def get_docker_statuses():
         return status_list
 
     except (FileNotFoundError, subprocess.CalledProcessError):
-        # Fallback to mock data if Docker is not installed or command fails
+        # fallback mock
         return [
             {"id": "mock1", "name": "Evolution API", "status": "running", "uptime": "6h", "port": "8080",
              "ram_usage": "128MiB / 512MiB", "cpu_usage": "5.12%", "net_usage": "10MB / 5MB"},
@@ -167,11 +128,10 @@ def get_docker_statuses():
         ]
 
 
-# --- API Endpoints ---
+# --- API Endpoints v1 (legacy) ---
 
 @app.post("/api/containers/{container_id}/start")
 async def start_container(container_id: str, user: str = Depends(get_current_user)):
-    """Starts a container."""
     try:
         subprocess.run(["docker", "start", container_id], check=True)
         return {"message": f"Container {container_id} started successfully."}
@@ -181,7 +141,6 @@ async def start_container(container_id: str, user: str = Depends(get_current_use
 
 @app.post("/api/containers/{container_id}/restart")
 async def restart_container(container_id: str, user: str = Depends(get_current_user)):
-    """Restarts a container."""
     try:
         subprocess.run(["docker", "restart", container_id], check=True)
         return {"message": f"Container {container_id} restarted successfully."}
@@ -191,7 +150,6 @@ async def restart_container(container_id: str, user: str = Depends(get_current_u
 
 @app.post("/api/containers/{container_id}/stop")
 async def stop_container(container_id: str, user: str = Depends(get_current_user)):
-    """Stops a container."""
     try:
         subprocess.run(["docker", "stop", container_id], check=True)
         return {"message": f"Container {container_id} stopped successfully."}
@@ -201,7 +159,6 @@ async def stop_container(container_id: str, user: str = Depends(get_current_user
 
 @app.get("/api/containers/{container_id}/logs")
 async def get_container_logs(container_id: str, lines: int = 100, user: str = Depends(get_current_user)):
-    """Gets logs from a container."""
     try:
         result = subprocess.run(
             ["docker", "logs", "--tail", str(lines), container_id],
@@ -223,14 +180,11 @@ async def exec_container_command(
     """
     Run a shell command inside a container using `docker exec`.
     Expects JSON body: { "command": "<string>" }
-    Returns stdout, stderr, and return code.
     """
     command = payload.get("command")
     if not command:
         raise HTTPException(status_code=400, detail="Missing 'command' in request body")
 
-    # We'll invoke sh -c "<command>" inside the container.
-    # We set check=False so even non-zero exit codes still return output instead of raising.
     try:
         result = subprocess.run(
             ["docker", "exec", container_id, "sh", "-c", command],
@@ -238,7 +192,6 @@ async def exec_container_command(
             text=True,
             check=False
         )
-
         return {
             "stdout": result.stdout,
             "stderr": result.stderr,
@@ -253,7 +206,6 @@ async def exec_container_command(
 
 @app.post("/api/login")
 async def login_for_access_token(username: str = Form(...), password: str = Form(...)):
-    """Handles login form submission, returns a JWT token."""
     if not (username == ADMIN_USER and password == ADMIN_PASSWORD):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -270,11 +222,15 @@ async def login_for_access_token(username: str = Form(...), password: str = Form
 
 @app.get("/api/status")
 async def get_status(user: str = Depends(get_current_user)):
-    """Provides the Docker services status as JSON, protected by authentication."""
+    """
+    Legacy /api/status para Dashboard.js viejo.
+    """
     return get_docker_statuses()
 
 
 @app.get("/healthz")
 def health_check():
-    """Simple health check endpoint for external monitoring."""
+    """
+    Health check para monitoreo externo.
+    """
     return {"status": "ok"}

@@ -1,0 +1,16 @@
+:80 {
+
+    # /api -> backend
+    @api path /api/*
+    handle @api {
+        reverse_proxy backend:8000
+    }
+
+    # SPA
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        encode gzip
+        file_server
+    }
+}
