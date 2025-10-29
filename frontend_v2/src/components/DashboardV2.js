@@ -34,6 +34,9 @@ export default function DashboardV2() {
   const [selectedContainerId, setSelectedContainerId] = useState(null); // logs modal
   const [terminalContainerId, setTerminalContainerId] = useState(null); // exec modal
 
+  // runtime info: how many containers are running / stopped per stack
+  const [stackRuntimeMap, setStackRuntimeMap] = useState({});
+
   /**
    * Centralized logout logic.
    * We use this both when the user clicks "Logout" AND when the backend
@@ -71,11 +74,46 @@ export default function DashboardV2() {
         setLoadingStacks(true);
         setError("");
 
+        // 1. fetch high-level stacks list
         const stacksArr = await listStacks();
-
         if (!alive) return;
+
         setStacks(stacksArr);
         setSelectedStackId((prev) => prev || stacksArr[0]?.stack_id || null);
+
+        // 2. for each stack, also fetch detail so we can count running/stopped
+        const detailsArr = await Promise.all(
+          stacksArr.map((st) =>
+            getStackDetail(st.stack_id).catch(() => null)
+          )
+        );
+
+        // 3. build a runtime map { stackId: { runCount, stopCount } }
+        const map = {};
+        detailsArr.forEach((detail, idx) => {
+          if (!detail) return;
+          const sid = stacksArr[idx].stack_id;
+          const containers = detail.containers || [];
+
+          let runCount = 0;
+          let stopCount = 0;
+
+          containers.forEach((c) => {
+            const state = (c.state || "").toLowerCase();
+            if (state === "running") {
+              runCount += 1;
+            } else {
+              // anything not "running" we consider "stopped"
+              stopCount += 1;
+            }
+          });
+
+          map[sid] = { runCount, stopCount };
+        });
+
+        if (alive) {
+          setStackRuntimeMap(map);
+        }
       } catch (e) {
         if (!alive) return;
         setError(e?.message || String(e));
@@ -90,64 +128,59 @@ export default function DashboardV2() {
     };
   }, [token]);
 
+
 // LOAD STACK DETAIL when selectedStackId changes
-useEffect(() => {
-  if (!token) return;
-  if (!selectedStackId) {
-    setStackDetail(null);
-    return;
-  }
-
-  let alive = true;
-
-  async function loadDetail() {
-    try {
-      setLoadingDetail(true);
-      setError("");
-
-      const data = await getStackDetail(selectedStackId);
-      if (!alive) return;
-
-      setStackDetail(data);
-
-      // <-- NEW: merge live summary metrics from detail
-      // We push RAM/CPU info from data.summary into the matching entry
-      // in `stacks`, so SidebarStacks can show real numbers instead of "N/A".
-      setStacks((prev) =>
-        prev.map((st) =>
-          st.stack_id === selectedStackId
-            ? {
-                ...st,
-                cpu_avg:
-                  data?.summary?.cpu_avg ?? st.cpu_avg,
-                ram_total_used:
-                  data?.summary?.ram_total_used ?? st.ram_total_used,
-                ram_host_total:
-                  data?.summary?.ram_host_total ?? st.ram_host_total,
-
-                // optional fallbacks if backend exposes these:
-                cpu_total:
-                  data?.summary?.cpu_total ?? st.cpu_total,
-                ram_total:
-                  data?.summary?.ram_total ?? st.ram_total,
-              }
-            : st
-        )
-      );
-      // <-- END NEW
-    } catch (e) {
-      if (!alive) return;
-      setError(e?.message || String(e));
-    } finally {
-      if (alive) setLoadingDetail(false);
+  useEffect(() => {
+    if (!token) return;
+    if (!selectedStackId) {
+      setStackDetail(null);
+      return;
     }
-  }
 
-  loadDetail();
-  return () => {
-    alive = false;
-  };
-}, [token, selectedStackId]);
+    let alive = true;
+
+    async function loadDetail() {
+      try {
+        setLoadingDetail(true);
+        setError("");
+
+        const data = await getStackDetail(selectedStackId);
+        if (!alive) return;
+
+        setStackDetail(data);
+
+        // also refresh runtime counts for THIS stack in stackRuntimeMap
+        const containers = data.containers || [];
+        let runCount = 0;
+        let stopCount = 0;
+
+        containers.forEach((c) => {
+          const state = (c.state || "").toLowerCase();
+          if (state === "running") {
+            runCount += 1;
+          } else {
+            stopCount += 1;
+          }
+        });
+
+        setStackRuntimeMap((prev) => ({
+          ...prev,
+          [selectedStackId]: { runCount, stopCount },
+        }));
+      } catch (e) {
+        if (!alive) return;
+        setError(e?.message || String(e));
+      } finally {
+        if (alive) setLoadingDetail(false);
+      }
+    }
+
+    loadDetail();
+    return () => {
+      alive = false;
+    };
+  }, [token, selectedStackId]);
+
 
 
   // modal helpers
@@ -230,6 +263,7 @@ useEffect(() => {
           stacks={stacks}
           selectedStackId={selectedStackId}
           onSelect={setSelectedStackId}
+          runtimeMap={stackRuntimeMap}
         />
 
         <main

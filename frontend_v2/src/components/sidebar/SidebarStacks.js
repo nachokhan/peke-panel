@@ -1,6 +1,11 @@
 import React from "react";
 
-export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
+export default function SidebarStacks({
+  stacks,
+  selectedStackId,
+  onSelect,
+  runtimeMap, 
+}) {
   // helper: treat "N/A", null, undefined, "-" as "not present"
   function isPresent(v) {
     return (
@@ -47,6 +52,10 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
         } else if (isPresent(st.cpu_total)) {
           cpuLabel = `${st.cpu_total}`;
         }
+
+        // runtime info for this stack, if we have it
+        const runCount = runtimeMap?.[st.stack_id]?.runCount || 0;
+        const stopCount = runtimeMap?.[st.stack_id]?.stopCount || 0;
 
         return (
           <div
@@ -151,6 +160,48 @@ export default function SidebarStacks({ stacks, selectedStackId, onSelect }) {
               <div style={{ marginTop: "4px", fontSize: "12px" }}>
                 Longest up: {st.longest_uptime || "—"}
               </div>
+
+              
+              <div
+                style={{
+                  marginTop: "6px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "4px",
+                  lineHeight: 1,
+                }}
+              >
+                {/* green dots for running */}
+                {Array.from({ length: runCount }).map((_, idx) => (
+                  <span
+                    key={`g${idx}`}
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "999px",
+                      background: "#3ddc84",
+                      border: "1px solid rgba(61,220,132,.5)",
+                      display: "inline-block",
+                    }}
+                  />
+                ))}
+
+                {/* red dots for stopped */}
+                {Array.from({ length: stopCount }).map((_, idx) => (
+                  <span
+                    key={`r${idx}`}
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "999px",
+                      background: "#ff6b6b",
+                      border: "1px solid rgba(255,107,107,.5)",
+                      display: "inline-block",
+                    }}
+                  />
+                ))}
+              </div>
+
             </div>
           </div>
         );
