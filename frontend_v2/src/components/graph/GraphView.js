@@ -6,7 +6,7 @@ const miniBtnStyle = {
   border: "1px solid var(--border)",
   borderRadius: "6px",
   padding: "4px 8px",        // <-- antes era "2px 4px", un poco más grande
-  fontSize: "16px",          // <-- antes 10px
+  fontSize: "20px",          // <-- antes 10px
   lineHeight: "1.2",         // <-- antes 1.2
   color: "var(--txt)",
   cursor: "pointer",
@@ -64,7 +64,7 @@ function StatusPill({ state }) {
         color: pillColor,
         border: `1px solid ${pillBorder}`,
         borderRadius: "999px",
-        fontSize: "10px",
+        fontSize: "13px",
         lineHeight: "1.2",
         padding: "2px 6px",
         whiteSpace: "nowrap",
